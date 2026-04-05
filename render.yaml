@@ -13,3 +13,6 @@ services:
         generateValue: true
       - key: DEBUG
         value: false
+databases:
+  - name: msklad-db
+    plan: free
