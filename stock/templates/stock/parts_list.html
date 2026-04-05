@@ -1,0 +1,92 @@
+<h2>Детали и расходники</h2>
+<table>
+    <tr><th>Тип</th><th>Название</th><th>Кол-во</th><th>Крит. минимум</th><th>На сколько приборов хватит</th><th>Действие</th></tr>
+    {% for part in parts %}
+    <tr>
+        <td>{% if part.is_consumable %}🧴 Расходник{% else %}⚙ Деталь{% endif %}</td>
+        <td>{{ part.name }}</td>
+        <td>{{ part.quantity }}</td>
+        <td>{{ part.critical_minimum }}</td>
+        <td>
+            {% if part.is_consumable %}
+                {{ part.quantity|floatformat:0 }} / {{ part.consumable_per_device|floatformat:2 }} = {{ part.quantity|div:part.consumable_per_device|floatformat:0 }} приборов
+            {% else %}
+                {{ part.days_left }} дней
+            {% endif %}
+        </td>
+        <td><a href="/order/{{ part.id }}" class="btn">Заказать</a></td>
+    </tr>
+    {% endfor %}
+</table>
+{% extends 'stock/base.html' %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Детали</h2>
+    {% if is_editable %}
+        <a href="/parts/add/" class="btn">+ Добавить деталь</a>
+    {% endif %}
+</div>
+
+<form method="get" style="margin: 20px 0;">
+    <input type="text" name="search" placeholder="Поиск..." value="{{ search }}" style="padding: 8px; width: 300px; background: #2a2a2a; color: white; border: 1px solid #b22222;">
+    <button type="submit" class="btn">Найти</button>
+</form>
+
+<table>
+    <thead>
+        <tr><th>Фото</th><th>Артикул</th><th>Название</th><th>Остаток</th><th>Крит. минимум</th><th>Хватит на (дней)</th><th>Доставка (дней)</th><th>Действия</th></tr>
+    </thead>
+    <tbody>
+        {% for part in parts %}
+        <tr>
+            <td>
+                {% if part.image %}
+                    <img src="{{ part.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>{{ part.sku|default:"—" }}</td>
+            <td>{{ part.name }}</td>
+            <td style="{% if part.quantity <= part.critical_minimum %}color: #b22222; font-weight: bold;{% endif %}">
+                {{ part.quantity|floatformat:0 }}
+            </td>
+            <td>{{ part.critical_minimum|floatformat:0 }}</td>
+            <td>{% if part.days_left < 999 %}{{ part.days_left }}{% else %}∞{% endif %}</td>
+            <td>{{ part.delivery_days }}</td>
+            <td>
+                <a href="/order/{{ part.id }}/" class="btn" style="background: #2a2a2a;">Заказать</a>
+                {% if is_editable %}
+                    <a href="/parts/edit/{{ part.id }}/" class="btn">✏</a>
+                    <button onclick="deletePart({{ part.id }}, '{{ part.name }}')" class="btn" style="background: #8b0000;">🗑</button>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align: center;">Нет деталей</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination" style="margin-top: 20px;">
+    {% if parts.has_previous %}
+        <a href="?page=1&search={{ search }}" class="btn">« Первая</a>
+        <a href="?page={{ parts.previous_page_number }}&search={{ search }}" class="btn">Предыдущая</a>
+    {% endif %}
+    <span style="margin: 0 10px;">Страница {{ parts.number }} из {{ parts.paginator.num_pages }}</span>
+    {% if parts.has_next %}
+        <a href="?page={{ parts.next_page_number }}&search={{ search }}" class="btn">Следующая</a>
+        <a href="?page={{ parts.paginator.num_pages }}&search={{ search }}" class="btn">Последняя »</a>
+    {% endif %}
+</div>
+
+<script>
+function deletePart(id, name) {
+    if (confirm(`Удалить деталь "${name}"?`)) {
+        fetch(`/parts/delete/${id}/`, {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}})
+            .then(r => r.json())
+            .then(data => { if(data.success) location.reload(); });
+    }
+}
+</script>
+{% endblock %}

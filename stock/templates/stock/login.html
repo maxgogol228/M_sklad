@@ -1,0 +1,28 @@
+{% extends 'stock/base.html' %}
+{% block content %}
+<div style="max-width: 400px; margin: 100px auto; background: #1e1e1e; padding: 30px; border-radius: 10px;">
+    <h2 style="color: #b22222; text-align: center;">Вход в М Склад</h2>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div style="background: #b22222; color: white; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="device_id" value="">
+        <div style="margin-bottom: 15px;">
+            <label>Имя пользователя:</label>
+            <input type="text" name="name" required style="width: 100%; padding: 8px; background: #2a2a2a; color: white; border: 1px solid #b22222; border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label>Ключ доступа:</label>
+            <input type="password" name="key" required style="width: 100%; padding: 8px; background: #2a2a2a; color: white; border: 1px solid #b22222; border-radius: 4px;">
+        </div>
+        <button type="submit" style="width: 100%; background: #b22222; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">Войти</button>
+    </form>
+</div>
+{% endblock %}

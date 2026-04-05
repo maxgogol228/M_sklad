@@ -1,0 +1,41 @@
+{% extends 'stock/base.html' %}
+{% block content %}
+<div style="display: flex; justify-content: space-between;">
+    <h2>Расходники</h2>
+    {% if is_editable %}
+        <a href="/parts/add/" class="btn">+ Добавить расходник</a>
+    {% endif %}
+</div>
+
+<table>
+    <thead>
+        <tr><th>Фото</th><th>Название</th><th>Остаток</th><th>Расход на прибор</th><th>На сколько приборов</th><th>Крит. минимум</th><th>Действия</th></tr>
+    </thead>
+    <tbody>
+        {% for c in consumables %}
+        <tr>
+            <td>
+                {% if c.image %}
+                    <img src="{{ c.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>{{ c.name }}</td>
+            <td style="{% if c.quantity <= c.critical_minimum %}color: #b22222;{% endif %}">{{ c.quantity|floatformat:0 }}</td>
+            <td>{{ c.consumable_per_device|floatformat:2 }}</td>
+            <td>{{ c.devices_count }}</td>
+            <td>{{ c.critical_minimum|floatformat:0 }}</td>
+            <td>
+                <a href="/order/{{ c.id }}/" class="btn">Заказать</a>
+                {% if is_editable %}
+                    <a href="/parts/edit/{{ c.id }}/" class="btn">✏</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">Нет расходников</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

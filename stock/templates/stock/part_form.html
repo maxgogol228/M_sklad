@@ -1,0 +1,44 @@
+{% extends 'stock/base.html' %}
+{% block content %}
+<h2>{{ title }}</h2>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <div style="margin-bottom: 15px;">
+        <label>Название:</label>
+        <input type="text" name="name" value="{{ part.name|default:'' }}" required style="width: 100%; padding: 8px; background: #2a2a2a; color: white; border: 1px solid #b22222;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label>Артикул/SKU:</label>
+        <input type="text" name="sku" value="{{ part.sku|default:'' }}" style="width: 100%; padding: 8px; background: #2a2a2a; color: white; border: 1px solid #b22222;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label>Текущее количество:</label>
+        <input type="number" step="0.01" name="quantity" value="{{ part.quantity|default:0 }}" required style="width: 100%; padding: 8px; background: #2a2a2a; color: white; border: 1px solid #b22222;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label>Критический минимум:</label>
+        <input type="number" step="0.01" name="critical_minimum" value="{{ part.critical_minimum|default:0 }}" style="width: 100%; padding: 8px; background: #2a2a2a; color: white; border: 1px solid #b22222;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label>Время доставки (дней):</label>
+        <input type="number" name="delivery_days" value="{{ part.delivery_days|default:7 }}" style="width: 100%; padding: 8px; background: #2a2a2a; color: white; border: 1px solid #b22222;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label>Изображение:</label>
+        {% if part.image %}
+            <div><img src="{{ part.image.url }}" style="max-width: 100px;"></div>
+        {% endif %}
+        <input type="file" name="image" accept="image/*" style="width: 100%; padding: 8px;">
+    </div>
+    
+    <button type="submit" class="btn">Сохранить</button>
+    <a href="javascript:history.back()" class="btn" style="background: #333;">Отмена</a>
+</form>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'stock/base.html' %}
+{% block content %}
+<div style="display: flex; justify-content: space-between;">
+    <h2>Приборы</h2>
+    {% if is_editable %}
+        <a href="/devices/add/" class="btn">+ Добавить прибор</a>
+    {% endif %}
+</div>
+
+<table>
+    <thead>
+        <tr><th>Фото</th><th>Название</th><th>Сборок в день</th><th>Кол-во деталей</th><th>Действия</th></tr>
+    </thead>
+    <tbody>
+        {% for device in devices %}
+        <tr>
+            <td>
+                {% if device.image %}
+                    <img src="{{ device.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>{{ device.name }}</td>
+            <td>{{ device.production_per_day }}</td>
+            <td>{{ device.parts_count }}</td>
+            <td>
+                {% if is_editable %}
+                    <a href="/devices/edit/{{ device.id }}/" class="btn">✏ Редактировать</a>
+                {% endif %}
+                <button onclick="viewDevice({{ device.id }})" class="btn">📋 Состав</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<script>
+function viewDevice(id) {
+    fetch(`/devices/${id}/composition/`)
+        .then(r => r.json())
+        .then(data => {
+            let html = `${data.device_name}\n\n`;
+            data.parts.forEach(p => {
+                html += `${p.name}: ${p.quantity} шт\n`;
+            });
+            alert(html);
+        });
+}
+</script>
+{% endblock %}

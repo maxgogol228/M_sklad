@@ -1,0 +1,69 @@
+{% extends 'stock/base.html' %}
+{% block content %}
+<h2>Панель управления</h2>
+<p>Пользователь: <strong>{{ user_name }}</strong> | Уровень доступа: {{ access_level }}</p>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+    
+    <!-- Критический запас -->
+    <div style="background: #1e1e1e; padding: 15px; border-radius: 8px; border-left: 4px solid #b22222;">
+        <h3 style="color: #b22222;">⚠ Критический запас</h3>
+        {% if critical_parts %}
+            <ul>
+            {% for part in critical_parts %}
+                <li>{{ part.name }}: {{ part.quantity }} шт (минимум {{ part.critical_minimum|floatformat:0 }})</li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>Все позиции в норме</p>
+        {% endif %}
+    </div>
+
+    <!-- Детали -->
+    <div style="background: #1e1e1e; padding: 15px; border-radius: 8px;">
+        <h3>🔧 Детали</h3>
+        <table style="width: 100%; font-size: 14px;">
+            <tr><th>Название</th><th>Остаток</th><th>Хватит на</th></tr>
+            {% for part in parts|slice:":5" %}
+            <tr>
+                <td>{{ part.name }}</td>
+                <td>{{ part.quantity|floatformat:0 }}</td>
+                <td>{% if part.days_left < 999 %}{{ part.days_left }} дн{% else %}∞{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <a href="/parts/" class="btn" style="display: inline-block; margin-top: 10px;">Все детали →</a>
+    </div>
+
+    <!-- Расходники -->
+    <div style="background: #1e1e1e; padding: 15px; border-radius: 8px;">
+        <h3>🧴 Расходники</h3>
+        <table style="width: 100%; font-size: 14px;">
+            <tr><th>Название</th><th>Остаток</th><th>На сколько приборов</th></tr>
+            {% for c in consumables|slice:":5" %}
+            <tr>
+                <td>{{ c.name }}</td>
+                <td>{{ c.quantity|floatformat:0 }}</td>
+                <td>{{ c.devices_count }} шт</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <a href="/consumables/" class="btn" style="display: inline-block; margin-top: 10px;">Все расходники →</a>
+    </div>
+</div>
+
+<!-- Быстрые действия -->
+<div style="margin-top: 30px; background: #1e1e1e; padding: 15px; border-radius: 8px;">
+    <h3>Быстрые действия</h3>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="/parts/add/" class="btn">➕ Добавить деталь</a>
+        <a href="/devices/add/" class="btn">📱 Добавить прибор</a>
+        <a href="/orders/" class="btn">📦 Заказы</a>
+        <a href="/reports/" class="btn">📊 Отчёты</a>
+        {% if access_level == 'full' %}
+            <a href="/admin-panel/" class="btn" style="background: #8b0000;">⚙ Админ-панель</a>
+        {% endif %}
+        <a href="/logout/" class="btn" style="background: #333;">🚪 Выход</a>
+    </div>
+</div>
+{% endblock %}

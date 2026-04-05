@@ -1,0 +1,10 @@
+/* Дополнительные стили для чёрно-красной темы */
+body.dark .btn { background: #b22222; color: white; border: none; cursor: pointer; }
+body.dark .btn:hover { background: #8b0000; }
+body.light .btn { background: #8b0000; color: white; }
+body.light .btn:hover { background: #b22222; }
+
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #b22222; padding: 8px; text-align: left; }
+th { background: #b22222; color: white; }
+body.light th { background: #8b0000; }
