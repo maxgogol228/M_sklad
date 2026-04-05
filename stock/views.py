@@ -539,7 +539,7 @@ def mark_order_received(request, order_id):
     )
     
     return JsonResponse({'success': True})
-path('devices/<int:device_id>/composition/', views.device_composition, name='device_composition'),
+
 def device_composition(request, device_id):
     """Просмотр состава прибора (AJAX)"""
     if not check_access(request):
