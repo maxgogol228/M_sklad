@@ -55,12 +55,21 @@ TEMPLATES = [
 WSGI_APPLICATION = 'msklad.wsgi.application'
 
 
+
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.getenv('postgresql://mpostgree_user:YalauULUpumArhu0EopvuIyCLl3JnErV@dpg-d79un65m5p6s73abkkp0-a:5432/mpostgree'),
-        conn_max_age=600
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('mpostgree'),
+        'USER': os.getenv('mpostgree_user'),
+        'PASSWORD': os.getenv('YalauULUpumArhu0EopvuIyCLl3JnErV'),
+        'HOST': os.getenv('dpg-d79un65m5p6s73abkkp0-a'),
+        'PORT': os.getenv('5432'),
+    }
 }
+
+
+
 
 AUTH_PASSWORD_VALIDATORS = []
 
