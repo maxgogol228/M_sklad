@@ -1,14 +1,15 @@
-#!/usr/bin/env python
-import os
-import sys
+import bcrypt
+from stock.models import AccessKey
 
-def main():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'msklad.settings')
-    try:
-        from django.core.management import execute_from_command_line
-    except ImportError as exc:
-        raise ImportError("Couldn't import Django") from exc
-    execute_from_command_line(sys.argv)
+key = "ADMIN-KEY-2024"
+key_hash = bcrypt.hashpw(key.encode(), bcrypt.gensalt()).decode()
 
-if __name__ == '__main__':
-    main()
+AccessKey.objects.create(
+    key_hash=key_hash,
+    level='full',
+    is_active=True,
+    comment='Администратор'
+)
+
+print("✅ Ключ создан:", key)
+exit()
