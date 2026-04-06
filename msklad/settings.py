@@ -56,10 +56,10 @@ WSGI_APPLICATION = 'msklad.wsgi.application'
 
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('postgresql://mpostgree_user:YalauULUpumArhu0EopvuIyCLl3JnErV@dpg-d79un65m5p6s73abkkp0-a:5432/mpostgree'),
+        conn_max_age=600
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = []
