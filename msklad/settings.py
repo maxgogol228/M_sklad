@@ -63,7 +63,7 @@ DATABASES = {
         'NAME': os.environ.get('mpostgree'),
         'USER': os.environ.get('mpostgree_user'),
         'PASSWORD': os.environ.get('YalauULUpumArhu0EopvuIyCLl3JnErV'),
-        'HOST': os.environ.get('dpg-d79un65m5p6s73abkkp0-a'),
+        'HOST': os.environ.get('dpg-d79un65m5p6s73abkkp0-a.oregon-postgres.render.com'),
         'PORT': os.environ.get('5432'),
     }
 }
