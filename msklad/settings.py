@@ -60,11 +60,11 @@ WSGI_APPLICATION = 'msklad.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('mpostgree'),
-        'USER': os.environ.get('mpostgree_user'),
-        'PASSWORD': os.environ.get('YalauULUpumArhu0EopvuIyCLl3JnErV'),
-        'HOST': os.environ.get('dpg-d79un65m5p6s73abkkp0-a.oregon-postgres.render.com'),
-        'PORT': os.environ.get('5432'),
+        'NAME': os.environ.get('DB_NAME', 'mpostgree'),
+        'USER': os.environ.get('DB_USER', 'mpostgree_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'YalauULUpumArhu0EopvuIyCLl3JnErV'),
+        'HOST': os.environ.get('DB_HOST','dpg-d79un65m5p6s73abkkp0-a.oregon-postgres.render.com'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
