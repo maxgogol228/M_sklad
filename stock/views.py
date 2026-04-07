@@ -12,7 +12,17 @@ from django.core.paginator import Paginator
 from django.db.models import Sum, Q
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from .models import *
+
+
+
+@csrf_exempt
+def run_migrations(request):
+    if request.GET.get('secret') == 'YOUR_SECRET_KEY':
+        call_command('migrate', interactive=False)
+        return HttpResponse("Миграции выполнены")
+    return HttpResponse("Нет доступа", status=403)
 
 def check_access(request, required_level=None):
     """Проверка уровня доступа"""
