@@ -3,8 +3,8 @@ services:
     name: msklad
     env: python
     buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
-    startCommand: "gunicorn msklad.wsgi:application"
-       envVars:
+    startCommand: "gunicorn msklad.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
       - key: DISABLE_POETRY
@@ -13,12 +13,3 @@ services:
         generateValue: true
       - key: DEBUG
         value: false
-databases:
-  - name: msklad-db
-    plan: free
-services:
-  - type: web
-    name: msklad
-    env: python
-    buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
-    startCommand: "gunicorn msklad.wsgi:application --bind 0.0.0.0:$PORT"
