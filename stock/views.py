@@ -15,7 +15,16 @@ from django.core.files.base import ContentFile
 from django.core.management import call_command
 from .models import *
 
-
+def create_test_key(request):
+    key = "TEST-KEY-123"
+    key_hash = bcrypt.hashpw(key.encode(), bcrypt.gensalt()).decode()
+    AccessKey.objects.create(
+        key_hash=key_hash,
+        level='full',
+        is_active=True,
+        comment='Тестовый ключ'
+    )
+    return HttpResponse(f"Ключ создан: {key}")
 
 @csrf_exempt
 def run_migrations(request):
