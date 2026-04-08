@@ -88,3 +88,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SESSION_COOKIE_AGE = 604800  # 7 дней
+
+
+try:
+    call_command('migrate', interactive=False)
+except Exception as e:
+    print(f"Migrate error: {e}")
