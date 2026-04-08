@@ -13,3 +13,5 @@ services:
         generateValue: true
       - key: DEBUG
         value: false
+      - key: DJANGO_SETTINGS_MODULE
+        value: msklad.settings
