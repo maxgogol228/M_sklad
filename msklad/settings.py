@@ -2,6 +2,7 @@ import dj_database_url
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from django.core.management import call_command
 
 load_dotenv()
 
