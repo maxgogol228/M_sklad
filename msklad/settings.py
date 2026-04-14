@@ -103,3 +103,13 @@ try:
     call_command('migrate', interactive=False)
 except Exception as e:
     print(f"Migrate error: {e}")
+
+
+# Автоматическое применение миграций при запуске (только для Render)
+if os.environ.get('RENDER'):
+    try:
+        from django.core.management import call_command
+        call_command('migrate', interactive=False)
+        print("✅ Миграции применены автоматически")
+    except Exception as e:
+        print(f"Migration error: {e}")
