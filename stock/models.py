@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django import template
+from django.db import connection
 register = template.Library()
 
 class AccessKey(models.Model):
@@ -72,6 +73,29 @@ class Log(models.Model):
     ip_address = models.GenericIPAddressField(null=True)
 
 
+
+
 @register.filter
 def get_item(dictionary, key):
     return dictionary.get(key) if dictionary else 0
+
+
+def force_update_table():
+    """Создаёт или обновляет таблицу AccessKey при запуске"""
+    with connection.cursor() as cursor:
+        # Проверяем, есть ли колонка 'key'
+        cursor.execute("PRAGMA table_info(stock_accesskey)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'key' not in columns and 'key_hash' in columns:
+            # Переименовываем старую колонку
+            cursor.execute("ALTER TABLE stock_accesskey RENAME COLUMN key_hash TO key")
+        elif 'key' not in columns:
+            # Добавляем новую колонку
+            cursor.execute("ALTER TABLE stock_accesskey ADD COLUMN key VARCHAR(100) UNIQUE")
+            
+        # Добавляем остальные колонки, если их нет
+        new_columns = ['level', 'is_active', 'created_by', 'created_at', 'activated_at', 'user_name']
+        for col in new_columns:
+            if col not in columns:
+                cursor.execute(f"ALTER TABLE stock_accesskey ADD COLUMN {col} {'TEXT' if col != 'is_active' else 'BOOLEAN DEFAULT 0'}")
