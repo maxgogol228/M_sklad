@@ -16,7 +16,97 @@ from django.core.management import call_command
 from .models import *
 
 
+def login_view(request):
+    if request.method == 'POST':
+        action = request.POST.get('action', 'login')
+        
+        if action == 'login':
+            # Обычный вход
+            user_name = request.POST.get('name', '').strip()
+            access_key = request.POST.get('key', '').strip()
+            
+            # Проверка пароля администратора
+            if access_key == get_admin_password_from_file():
+                # Вход как администратор
+                request.session['user_name'] = user_name or 'Администратор'
+                request.session['access_level'] = 'admin'
+                request.session['is_admin'] = True
+                Log.objects.create(
+                    user=user_name or 'Администратор',
+                    action='Вход как администратор',
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                return redirect('/admin-panel/')
+            
+            # Проверка обычного ключа
+            try:
+                key_obj = AccessKey.objects.get(key=access_key, is_active=True)
+                # Обновляем имя пользователя
+                key_obj.user_name = user_name
+                key_obj.save()
+                
+                request.session['user_name'] = user_name
+                request.session['access_level'] = key_obj.level
+                request.session['key_id'] = key_obj.id
+                
+                Log.objects.create(
+                    user=user_name,
+                    action=f'Вход с ключом {access_key} (уровень: {key_obj.level})',
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                
+                if key_obj.level == 'admin':
+                    return redirect('/admin-panel/')
+                return redirect('/dashboard/')
+                
+            except AccessKey.DoesNotExist:
+                messages.error(request, 'Неверный ключ доступа')
+                
+        elif action == 'create_key':
+            # Создание нового ключа (неактивный)
+            new_key = request.POST.get('new_key', '').strip()
+            user_name = request.POST.get('name', '').strip()
+            
+            if not new_key:
+                messages.error(request, 'Введите ключ')
+            elif AccessKey.objects.filter(key=new_key).exists():
+                messages.error(request, 'Такой ключ уже существует')
+            else:
+                AccessKey.objects.create(
+                    key=new_key,
+                    level='observer',
+                    is_active=False,
+                    created_by=user_name or 'Аноним'
+                )
+                messages.success(request, f'Ключ "{new_key}" создан. Ожидает активации администратором.')
+    
+    return render(request, 'stock/login.html')
 
+def get_admin_password_from_file():
+    """Читает пароль из файла или возвращает значение по умолчанию"""
+    password_file = 'admin_password.txt'
+    if os.path.exists(password_file):
+        with open(password_file, 'r') as f:
+            return f.read().strip()
+    return "//admpan1993//"
+
+def update_admin_password(request):
+    """Обновление пароля администратора (только для админов)"""
+    if not request.session.get('is_admin'):
+        return JsonResponse({'error': 'Нет доступа'}, status=403)
+    
+    if request.method == 'POST':
+        new_password = request.POST.get('new_password')
+        if new_password:
+            with open('admin_password.txt', 'w') as f:
+                f.write(new_password)
+            Log.objects.create(
+                user=request.session.get('user_name', 'admin'),
+                action='Сменил пароль администратора',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Метод не разрешён'}, status=405)
 
 
 def create_test_key(request):
