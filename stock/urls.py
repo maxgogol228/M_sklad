@@ -25,4 +25,9 @@ urlpatterns = [
     path('admin-panel/logs/', views.view_logs, name='view_logs'),
     path('admin-panel/backup/', views.backup_database, name='backup'),
     path('admin-panel/make-admin/<int:user_id>/', views.make_admin, name='make_admin'),
+    path('admin/keys/', views.admin_panel_keys, name='admin_keys'),
+    path('admin/activate-key/<int:key_id>/', views.activate_key, name='activate_key'),
+    path('admin/update-key-level/<int:key_id>/', views.update_key_level, name='update_key_level'),
+    path('admin/delete-key/<int:key_id>/', views.delete_key, name='delete_key'),
+    path('admin/update-password/', views.update_admin_password, name='update_password'),
 ]
