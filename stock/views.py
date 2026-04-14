@@ -109,6 +109,69 @@ def update_admin_password(request):
     return JsonResponse({'error': 'Метод не разрешён'}, status=405)
 
 
+def admin_panel_keys(request):
+    """Управление ключами в админ-панели"""
+    if not request.session.get('is_admin'):
+        return redirect('/login/')
+    
+    keys = AccessKey.objects.all().order_by('-created_at')
+    return render(request, 'stock/admin_keys.html', {'keys': keys})
+
+def activate_key(request, key_id):
+    """Активация ключа"""
+    if not request.session.get('is_admin'):
+        return JsonResponse({'error': 'Нет доступа'}, status=403)
+    
+    key = get_object_or_404(AccessKey, id=key_id)
+    key.is_active = True
+    key.activated_at = now()
+    key.save()
+    
+    Log.objects.create(
+        user=request.session.get('user_name', 'admin'),
+        action=f'Активировал ключ {key.key} с уровнем {key.level}',
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    return JsonResponse({'success': True})
+
+def update_key_level(request, key_id):
+    """Изменение уровня доступа ключа"""
+    if not request.session.get('is_admin'):
+        return JsonResponse({'error': 'Нет доступа'}, status=403)
+    
+    key = get_object_or_404(AccessKey, id=key_id)
+    new_level = request.POST.get('level')
+    if new_level in dict(AccessKey.LEVEL_CHOICES):
+        key.level = new_level
+        key.save()
+        
+        Log.objects.create(
+            user=request.session.get('user_name', 'admin'),
+            action=f'Изменил уровень ключа {key.key} на {new_level}',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Неверный уровень'}, status=400)
+
+def delete_key(request, key_id):
+    """Удаление ключа"""
+    if not request.session.get('is_admin'):
+        return JsonResponse({'error': 'Нет доступа'}, status=403)
+    
+    key = get_object_or_404(AccessKey, id=key_id)
+    key.delete()
+    
+    Log.objects.create(
+        user=request.session.get('user_name', 'admin'),
+        action=f'Удалил ключ {key.key}',
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    return JsonResponse({'success': True})
+
+
 def create_test_key(request):
     key = "TEST-KEY-123"
     key_hash = bcrypt.hashpw(key.encode(), bcrypt.gensalt()).decode()
