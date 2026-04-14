@@ -13,8 +13,24 @@ from django.db.models import Sum, Q
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.core.management import call_command
+from django.db import connection
 from .models import *
 
+def ensure_admin_key():
+    """Создаёт ключ администратора, если его нет"""
+    from .models import AccessKey
+    
+    # Проверяем, есть ли активный ключ с уровнем admin
+    if not AccessKey.objects.filter(is_active=True, level='admin').exists():
+        # Создаём ключ администратора
+        AccessKey.objects.create(
+            key="//admpan1993//",
+            level='admin',
+            is_active=True,
+            created_by='system',
+            user_name='Администратор'
+        )
+        print("✅ Создан ключ администратора: //admpan1993//")
 
 def login_view(request):
     if request.method == 'POST':
