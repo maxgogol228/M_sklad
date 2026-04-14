@@ -5,15 +5,32 @@ register = template.Library()
 
 class AccessKey(models.Model):
     LEVEL_CHOICES = [
+        ('observer', 'Наблюдатель'),
         ('full', 'Полный доступ'),
-        ('limited', 'Ограниченный'),
-        ('readonly', 'Только чтение'),
+        ('admin', 'Доступ к админ панели'),
     ]
-    key_hash = models.CharField(max_length=128, unique=True)
-    level = models.CharField(max_length=20, choices=LEVEL_CHOICES)
-    is_active = models.BooleanField(default=True)
-    comment = models.TextField(blank=True)
+    key = models.CharField(max_length=100, unique=True)  # Сам ключ (не хэш)
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='observer')
+    is_active = models.BooleanField(default=False)
+    created_by = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    user_name = models.CharField(max_length=100, blank=True)  # Имя пользователя при входе
+
+class AdminPassword(models.Model):
+    """Хранит пароль администратора"""
+    password_hash = models.CharField(max_length=128)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def get_password(cls):
+        obj = cls.objects.first()
+        if not obj:
+            # Создаём пароль по умолчанию
+            import bcrypt
+            default_hash = bcrypt.hashpw(b"//admpan1993//", bcrypt.gensalt()).decode()
+            obj = cls.objects.create(password_hash=default_hash)
+        return obj.password_hash
 
 class UserSession(models.Model):
     user_name = models.CharField(max_length=100)
