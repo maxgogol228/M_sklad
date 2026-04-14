@@ -16,6 +16,14 @@ from django.core.management import call_command
 from django.db import connection
 from .models import *
 
+def ensure_password_file():
+    """Создаёт файл с паролем администратора, если его нет"""
+    password_file = 'admin_password.txt'
+    if not os.path.exists(password_file):
+        with open(password_file, 'w') as f:
+            f.write("//admpan1993//")
+        print("✅ Создан файл admin_password.txt")
+
 def ensure_admin_key():
     """Создаёт ключ администратора, если его нет"""
     from .models import AccessKey
