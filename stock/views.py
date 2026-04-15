@@ -1,232 +1,103 @@
-import json
-import os
-import bcrypt
-import uuid
-from datetime import datetime, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, FileResponse
 from django.utils.timezone import now
-from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
-from django.db.models import Sum, Q
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-from django.core.management import call_command
-from django.db import connection
-from .models import *
-
-def ensure_password_file():
-    """Создаёт файл с паролем администратора, если его нет"""
-    password_file = 'admin_password.txt'
-    if not os.path.exists(password_file):
-        with open(password_file, 'w') as f:
-            f.write("//admpan1993//")
-        print("✅ Создан файл admin_password.txt")
-
-def ensure_admin_key():
-    """Создаёт ключ администратора, если его нет"""
-    from .models import AccessKey
-    
-    # Проверяем, есть ли активный ключ с уровнем admin
-    if not AccessKey.objects.filter(is_active=True, level='admin').exists():
-        # Создаём ключ администратора
-        AccessKey.objects.create(
-            key="//admpan1993//",
-            level='admin',
-            is_active=True,
-            created_by='system',
-            user_name='Администратор'
-        )
-        print("✅ Создан ключ администратора: //admpan1993//")
-
-def login_view(request):
-    if request.method == 'POST':
-        user_name = request.POST.get('name', '').strip()
-        access_key = request.POST.get('key', '').strip()
-        
-        from .models import AccessKey
-        
-        try:
-            key_obj = AccessKey.objects.get(key=access_key, is_active=True)
-            request.session['user_name'] = user_name
-            request.session['access_level'] = key_obj.level
-            request.session['key_id'] = key_obj.id
-            request.session['is_admin'] = (key_obj.level == 'admin')
-            
-            if key_obj.level == 'admin':
-                return redirect('/admin-panel/')
-            return redirect('/dashboard/')
-            
-        except AccessKey.DoesNotExist:
-            # Первый вход с мастер-ключом
-            if access_key == "//admpan1993//":
-                key_obj, created = AccessKey.objects.get_or_create(
-                    key="//admpan1993//",
-                    defaults={
-                        'level': 'admin',
-                        'is_active': True,
-                        'created_by': 'system',
-                        'user_name': 'Администратор'
-                    }
-                )
-                request.session['user_name'] = user_name
-                request.session['access_level'] = 'admin'
-                request.session['is_admin'] = True
-                return redirect('/admin-panel/')
-            
-            messages.error(request, 'Неверный ключ доступа')
-    
-    return render(request, 'stock/login.html')
-
-def get_admin_password_from_file():
-    """Читает пароль из файла или возвращает значение по умолчанию"""
-    password_file = 'admin_password.txt'
-    if os.path.exists(password_file):
-        with open(password_file, 'r') as f:
-            return f.read().strip()
-    return "//admpan1993//"
-
-def update_admin_password(request):
-    """Обновление пароля администратора (только для админов)"""
-    if not request.session.get('is_admin'):
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
-    if request.method == 'POST':
-        new_password = request.POST.get('new_password')
-        if new_password:
-            with open('admin_password.txt', 'w') as f:
-                f.write(new_password)
-            Log.objects.create(
-                user=request.session.get('user_name', 'admin'),
-                action='Сменил пароль администратора',
-                ip_address=request.META.get('REMOTE_ADDR')
-            )
-            return JsonResponse({'success': True})
-    return JsonResponse({'error': 'Метод не разрешён'}, status=405)
-
-
-def admin_panel_keys(request):
-    """Управление ключами в админ-панели"""
-    if not request.session.get('is_admin'):
-        return redirect('/login/')
-    
-    keys = AccessKey.objects.all().order_by('-created_at')
-    return render(request, 'stock/admin_keys.html', {'keys': keys})
-
-def activate_key(request, key_id):
-    """Активация ключа"""
-    if not request.session.get('is_admin'):
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
-    key = get_object_or_404(AccessKey, id=key_id)
-    key.is_active = True
-    key.activated_at = now()
-    key.save()
-    
-    Log.objects.create(
-        user=request.session.get('user_name', 'admin'),
-        action=f'Активировал ключ {key.key} с уровнем {key.level}',
-        ip_address=request.META.get('REMOTE_ADDR')
-    )
-    
-    return JsonResponse({'success': True})
-
-def update_key_level(request, key_id):
-    """Изменение уровня доступа ключа"""
-    if not request.session.get('is_admin'):
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
-    key = get_object_or_404(AccessKey, id=key_id)
-    new_level = request.POST.get('level')
-    if new_level in dict(AccessKey.LEVEL_CHOICES):
-        key.level = new_level
-        key.save()
-        
-        Log.objects.create(
-            user=request.session.get('user_name', 'admin'),
-            action=f'Изменил уровень ключа {key.key} на {new_level}',
-            ip_address=request.META.get('REMOTE_ADDR')
-        )
-        
-        return JsonResponse({'success': True})
-    return JsonResponse({'error': 'Неверный уровень'}, status=400)
-
-def delete_key(request, key_id):
-    """Удаление ключа"""
-    if not request.session.get('is_admin'):
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
-    key = get_object_or_404(AccessKey, id=key_id)
-    key.delete()
-    
-    Log.objects.create(
-        user=request.session.get('user_name', 'admin'),
-        action=f'Удалил ключ {key.key}',
-        ip_address=request.META.get('REMOTE_ADDR')
-    )
-    
-    return JsonResponse({'success': True})
-
-
-
-
-@csrf_exempt
-def run_migrations(request):
-    if request.GET.get('secret') == 'YOUR_SECRET_KEY':
-        call_command('migrate', interactive=False)
-        return HttpResponse("Миграции выполнены")
-    return HttpResponse("Нет доступа", status=403)
+from django.views.decorators.csrf import csrf_exempt
+from .models import AccessKey, UserSession, Part, Device, DevicePart, Order, Log
+import bcrypt
+import uuid
+import os
+import json
+from datetime import datetime, timedelta
+import stock.models as models
 
 def check_access(request, required_level=None):
     """Проверка уровня доступа"""
     if not hasattr(request, 'access_level'):
         return False
-    if required_level == 'full' and request.access_level != 'full':
+    if required_level == 'admin' and not request.is_admin:
         return False
-    if required_level == 'readonly' and request.access_level == 'readonly':
+    if required_level == 'full' and request.access_level not in ['full', 'admin']:
         return False
     return True
 
 def login_view(request):
     if request.method == 'POST':
-        user_name = request.POST.get('name')
-        access_key = request.POST.get('key')
+        user_name = request.POST.get('name', '').strip()
+        access_key = request.POST.get('key', '').strip()
         device_id = request.POST.get('device_id') or str(uuid.uuid4())
-
-        try:
-            # Поиск ключа (хэширование введённого ключа и сравнение)
-            all_keys = AccessKey.objects.filter(is_active=True)
-            found_key = None
-            for ak in all_keys:
-                if bcrypt.checkpw(access_key.encode(), ak.key_hash.encode()):
-                    found_key = ak
-                    break
+        
+        # Специальный ключ администратора (первый вход)
+        if access_key == "//admpan1993//":
+            # Создаём или получаем ключ администратора
+            key_obj, created = AccessKey.objects.get_or_create(
+                key="//admpan1993//",
+                defaults={
+                    'level': 'admin',
+                    'is_active': True,
+                    'created_by': 'system',
+                    'user_name': 'Администратор'
+                }
+            )
             
-            if found_key:
-                session, created = UserSession.objects.get_or_create(
-                    device_id=device_id,
-                    defaults={
-                        'user_name': user_name,
-                        'access_key_hash': found_key.key_hash
-                    }
-                )
-                if not created:
-                    session.user_name = user_name
-                    session.access_key_hash = found_key.key_hash
-                session.last_login = now()
-                session.is_active = True
-                session.save()
-                
-                response = redirect('/')
-                response.set_cookie('device_id', device_id, max_age=604800)
-                response.set_cookie('user_name', user_name, max_age=604800)
-                messages.success(request, f'Добро пожаловать, {user_name}!')
-                return response
-            else:
-                messages.error(request, 'Неверный ключ доступа')
-        except Exception as e:
-            messages.error(request, f'Ошибка: {str(e)}')
+            # Создаём сессию
+            session, _ = UserSession.objects.get_or_create(
+                device_id=device_id,
+                defaults={
+                    'user_name': user_name or 'Администратор',
+                    'access_key_hash': key_obj.key
+                }
+            )
+            session.user_name = user_name or 'Администратор'
+            session.access_key_hash = key_obj.key
+            session.last_login = now()
+            session.is_active = True
+            session.save()
+            
+            response = redirect('/admin-panel/')
+            response.set_cookie('device_id', device_id, max_age=604800)
+            response.set_cookie('user_name', user_name or 'Администратор', max_age=604800)
+            
+            Log.objects.create(
+                user=user_name or 'Администратор',
+                action='Вход как администратор',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            return response
+        
+        # Обычная проверка ключа
+        try:
+            key_obj = AccessKey.objects.get(key=access_key, is_active=True)
+            
+            # Создаём или обновляем сессию
+            session, created = UserSession.objects.get_or_create(
+                device_id=device_id,
+                defaults={
+                    'user_name': user_name,
+                    'access_key_hash': key_obj.key
+                }
+            )
+            if not created:
+                session.user_name = user_name
+                session.access_key_hash = key_obj.key
+            session.last_login = now()
+            session.is_active = True
+            session.save()
+            
+            response = redirect('/dashboard/' if key_obj.level != 'admin' else '/admin-panel/')
+            response.set_cookie('device_id', device_id, max_age=604800)
+            response.set_cookie('user_name', user_name, max_age=604800)
+            
+            Log.objects.create(
+                user=user_name,
+                action=f'Вход с ключом {access_key} (уровень: {key_obj.level})',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            return response
+            
+        except AccessKey.DoesNotExist:
+            messages.error(request, 'Неверный ключ доступа')
     
     return render(request, 'stock/login.html')
 
@@ -234,6 +105,7 @@ def logout_view(request):
     response = redirect('/login')
     response.delete_cookie('device_id')
     response.delete_cookie('user_name')
+    request.session.flush()
     messages.info(request, 'Вы вышли из системы')
     return response
 
@@ -241,10 +113,8 @@ def dashboard(request):
     if not check_access(request):
         return redirect('/login')
     
-    # Детали
     parts = Part.objects.filter(is_consumable=False)
     for p in parts:
-        # Расчёт суммарного потребления в день
         device_parts = DevicePart.objects.filter(part=p)
         total_per_day = 0
         for dp in device_parts:
@@ -253,20 +123,19 @@ def dashboard(request):
         p.days_left = int(p.quantity / total_per_day) if total_per_day > 0 else 999
         p.needs_order = p.quantity <= p.critical_minimum
     
-    # Расходники
     consumables = Part.objects.filter(is_consumable=True)
     for c in consumables:
         c.devices_count = int(c.quantity / c.consumable_per_device) if c.consumable_per_device > 0 else 0
     
-    # Критические позиции
     critical_parts = [p for p in parts if p.needs_order]
     
     context = {
-        'parts': parts,
-        'consumables': consumables,
+        'parts': parts[:10],
+        'consumables': consumables[:10],
         'critical_parts': critical_parts,
         'user_name': request.COOKIES.get('user_name', ''),
-        'access_level': request.access_level if hasattr(request, 'access_level') else 'readonly'
+        'access_level': getattr(request, 'access_level', 'observer'),
+        'is_admin': getattr(request, 'is_admin', False)
     }
     return render(request, 'stock/dashboard.html', context)
 
@@ -276,12 +145,10 @@ def parts_list(request):
     
     parts = Part.objects.filter(is_consumable=False)
     
-    # Фильтрация
     search = request.GET.get('search', '')
     if search:
         parts = parts.filter(name__icontains=search)
     
-    # Расчёт дней
     for p in parts:
         device_parts = DevicePart.objects.filter(part=p)
         total_per_day = 0
@@ -295,7 +162,7 @@ def parts_list(request):
     
     context = {
         'parts': page_obj,
-        'is_editable': request.access_level == 'full',
+        'is_editable': getattr(request, 'access_level', 'observer') in ['full', 'admin'],
         'search': search
     }
     return render(request, 'stock/parts_list.html', context)
@@ -325,7 +192,6 @@ def part_add(request):
             part.image = request.FILES['image']
             part.save()
         
-        # Логирование
         Log.objects.create(
             user=request.COOKIES.get('user_name', 'unknown'),
             action=f'Добавил деталь: {name}',
@@ -395,7 +261,7 @@ def devices_list(request):
     
     context = {
         'devices': devices,
-        'is_editable': request.access_level == 'full'
+        'is_editable': getattr(request, 'access_level', 'observer') in ['full', 'admin']
     }
     return render(request, 'stock/devices_list.html', context)
 
@@ -417,7 +283,6 @@ def device_add(request):
             device.image = request.FILES['image']
             device.save()
         
-        # Добавление деталей к прибору
         part_ids = request.POST.getlist('part_ids')
         quantities = request.POST.getlist('quantities')
         for part_id, qty in zip(part_ids, quantities):
@@ -458,7 +323,6 @@ def device_edit(request, device_id):
         
         device.save()
         
-        # Обновление состава
         DevicePart.objects.filter(device=device).delete()
         part_ids = request.POST.getlist('part_ids')
         quantities = request.POST.getlist('quantities')
@@ -488,6 +352,23 @@ def device_edit(request, device_id):
         'title': 'Редактировать прибор'
     })
 
+def device_composition(request, device_id):
+    """Просмотр состава прибора (AJAX)"""
+    if not check_access(request):
+        return JsonResponse({'error': 'Нет доступа'}, status=403)
+    
+    device = get_object_or_404(Device, id=device_id)
+    device_parts = DevicePart.objects.filter(device=device).select_related('part')
+    
+    data = {
+        'device_name': device.name,
+        'parts': [{
+            'name': dp.part.name,
+            'quantity': dp.quantity_per_device
+        } for dp in device_parts]
+    }
+    return JsonResponse(data)
+
 def consumables_list(request):
     if not check_access(request):
         return redirect('/login')
@@ -499,7 +380,7 @@ def consumables_list(request):
     
     context = {
         'consumables': consumables,
-        'is_editable': request.access_level == 'full'
+        'is_editable': getattr(request, 'access_level', 'observer') in ['full', 'admin']
     }
     return render(request, 'stock/consumables_list.html', context)
 
@@ -527,7 +408,6 @@ def create_order(request, part_id):
         messages.success(request, f'Заказ на {part.name} создан')
         return redirect('/orders/')
     
-    # Расчёт рекомендуемого количества
     device_parts = DevicePart.objects.filter(part=part)
     total_per_day = 0
     for dp in device_parts:
@@ -548,20 +428,38 @@ def orders_list(request):
     
     context = {
         'orders': orders,
-        'is_editable': request.access_level == 'full'
+        'is_editable': getattr(request, 'access_level', 'observer') in ['full', 'admin']
     }
     return render(request, 'stock/orders_list.html', context)
+
+def mark_order_received(request, order_id):
+    if not check_access(request, 'full'):
+        return JsonResponse({'error': 'Нет прав'}, status=403)
+    
+    order = get_object_or_404(Order, id=order_id)
+    order.is_received = True
+    order.save()
+    
+    part = order.part
+    part.quantity += order.quantity_ordered
+    part.save()
+    
+    Log.objects.create(
+        user=request.COOKIES.get('user_name', 'unknown'),
+        action=f'Оприходован заказ на {part.name}: {order.quantity_ordered} шт',
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    return JsonResponse({'success': True})
 
 def reports(request):
     if not check_access(request):
         return redirect('/login')
     
-    # Статистика
     total_parts = Part.objects.count()
     low_stock = Part.objects.filter(quantity__lte=models.F('critical_minimum')).count()
     total_orders = Order.objects.filter(is_received=False).count()
     
-    # Детали с низким запасом
     critical_parts = []
     for p in Part.objects.filter(is_consumable=False):
         device_parts = DevicePart.objects.filter(part=p)
@@ -579,16 +477,13 @@ def reports(request):
     return render(request, 'stock/reports.html', context)
 
 def admin_panel(request):
-    if not check_access(request, 'full'):
+    if not getattr(request, 'is_admin', False):
         messages.error(request, 'Доступ только для администраторов')
         return redirect('/')
     
-    # Статистика
     total_users = UserSession.objects.count()
     active_keys = AccessKey.objects.filter(is_active=True).count()
     total_logs = Log.objects.count()
-    
-    # Последние логи
     recent_logs = Log.objects.all().order_by('-timestamp')[:50]
     
     context = {
@@ -599,32 +494,38 @@ def admin_panel(request):
     }
     return render(request, 'stock/admin_panel.html', context)
 
+def admin_panel_keys(request):
+    """Управление ключами в админ-панели"""
+    if not getattr(request, 'is_admin', False):
+        return redirect('/login/')
+    
+    keys = AccessKey.objects.all().order_by('-created_at')
+    return render(request, 'stock/admin_keys.html', {'keys': keys})
+
 def create_access_key(request):
-    if not check_access(request, 'full'):
+    if not getattr(request, 'is_admin', False):
         return JsonResponse({'error': 'Нет прав'}, status=403)
     
     if request.method == 'POST':
         level = request.POST.get('level')
         comment = request.POST.get('comment', '')
         
-        # Генерация ключа
         import random
         import string
         key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
         key_with_hyphens = f"{key[:4]}-{key[4:8]}-{key[8:12]}"
         
-       
-        
         AccessKey.objects.create(
-            key_hash=key_hash,
+            key=key_with_hyphens,
             level=level,
             is_active=True,
-            comment=comment
+            created_by=request.COOKIES.get('user_name', 'admin'),
+            user_name=''
         )
         
         Log.objects.create(
             user=request.COOKIES.get('user_name', 'unknown'),
-            action=f'Создал новый ключ доступа (уровень: {level})',
+            action=f'Создал новый ключ доступа {key_with_hyphens} (уровень: {level})',
             ip_address=request.META.get('REMOTE_ADDR')
         )
         
@@ -632,8 +533,63 @@ def create_access_key(request):
     
     return JsonResponse({'error': 'Метод не разрешён'}, status=405)
 
+def activate_key(request, key_id):
+    """Активация ключа"""
+    if not getattr(request, 'is_admin', False):
+        return JsonResponse({'error': 'Нет доступа'}, status=403)
+    
+    key = get_object_or_404(AccessKey, id=key_id)
+    key.is_active = True
+    key.activated_at = now()
+    key.save()
+    
+    Log.objects.create(
+        user=request.COOKIES.get('user_name', 'admin'),
+        action=f'Активировал ключ {key.key} с уровнем {key.level}',
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    return JsonResponse({'success': True})
+
+def update_key_level(request, key_id):
+    """Изменение уровня доступа ключа"""
+    if not getattr(request, 'is_admin', False):
+        return JsonResponse({'error': 'Нет доступа'}, status=403)
+    
+    key = get_object_or_404(AccessKey, id=key_id)
+    new_level = request.POST.get('level')
+    if new_level in dict(AccessKey.LEVEL_CHOICES):
+        key.level = new_level
+        key.save()
+        
+        Log.objects.create(
+            user=request.COOKIES.get('user_name', 'admin'),
+            action=f'Изменил уровень ключа {key.key} на {new_level}',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Неверный уровень'}, status=400)
+
+def delete_key(request, key_id):
+    """Удаление ключа"""
+    if not getattr(request, 'is_admin', False):
+        return JsonResponse({'error': 'Нет доступа'}, status=403)
+    
+    key = get_object_or_404(AccessKey, id=key_id)
+    key_name = key.key
+    key.delete()
+    
+    Log.objects.create(
+        user=request.COOKIES.get('user_name', 'admin'),
+        action=f'Удалил ключ {key_name}',
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    return JsonResponse({'success': True})
+
 def view_logs(request):
-    if not check_access(request, 'full'):
+    if not getattr(request, 'is_admin', False):
         return JsonResponse({'error': 'Нет прав'}, status=403)
     
     logs = Log.objects.all().order_by('-timestamp')
@@ -641,82 +597,32 @@ def view_logs(request):
     return JsonResponse({'logs': data})
 
 def backup_database(request):
-    if not check_access(request, 'full'):
+    if not getattr(request, 'is_admin', False):
         messages.error(request, 'Нет прав')
         return redirect('/')
     
-    import subprocess
     import zipfile
     from django.conf import settings
     
     backup_dir = '/tmp/backup_msklad'
     os.makedirs(backup_dir, exist_ok=True)
     
-    # Дамп базы данных
-    db_name = settings.DATABASES['default']['NAME']
-    db_user = settings.DATABASES['default']['USER']
-    db_password = settings.DATABASES['default']['PASSWORD']
+    # Копируем SQLite базу
+    db_path = settings.DATABASES['default']['NAME']
+    if os.path.exists(db_path):
+        import shutil
+        shutil.copy(db_path, os.path.join(backup_dir, 'db.sqlite3'))
     
-    dump_file = os.path.join(backup_dir, 'database.sql')
-    os.environ['PGPASSWORD'] = db_password
-    subprocess.run(['pg_dump', '-U', db_user, '-h', 'localhost', db_name, '-f', dump_file])
-    
-    # Создание архива
     zip_path = f'/tmp/msklad_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
     with zipfile.ZipFile(zip_path, 'w') as zipf:
-        zipf.write(dump_file, 'database.sql')
-        # Добавить медиафайлы
-        for root, dirs, files in os.walk(settings.MEDIA_ROOT):
-            for file in files:
-                zipf.write(os.path.join(root, file), os.path.join('media', file))
+        zipf.write(os.path.join(backup_dir, 'db.sqlite3'), 'db.sqlite3')
+        if os.path.exists(settings.MEDIA_ROOT):
+            for root, dirs, files in os.walk(settings.MEDIA_ROOT):
+                for file in files:
+                    zipf.write(os.path.join(root, file), os.path.join('media', file))
     
     response = FileResponse(open(zip_path, 'rb'), content_type='application/zip')
     response['Content-Disposition'] = f'attachment; filename="msklad_backup.zip"'
     return response
 
-def make_admin(request, user_id):
-    if not check_access(request, 'full'):
-        return JsonResponse({'error': 'Нет прав'}, status=403)
-    
-    # Эта функция требует дополнительной модели Admins
-    messages.info(request, 'Функция в разработке')
-    return redirect('/admin-panel/')
-
-def mark_order_received(request, order_id):
-    """Отметить заказ как полученный"""
-    if not check_access(request, 'full'):
-        return JsonResponse({'error': 'Нет прав'}, status=403)
-    
-    order = get_object_or_404(Order, id=order_id)
-    order.is_received = True
-    order.save()
-    
-    # Добавляем количество на склад
-    part = order.part
-    part.quantity += order.quantity_ordered
-    part.save()
-    
-    Log.objects.create(
-        user=request.COOKIES.get('user_name', 'unknown'),
-        action=f'Оприходован заказ на {part.name}: {order.quantity_ordered} шт',
-        ip_address=request.META.get('REMOTE_ADDR')
-    )
-    
-    return JsonResponse({'success': True})
-
-def device_composition(request, device_id):
-    """Просмотр состава прибора (AJAX)"""
-    if not check_access(request):
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
-    device = get_object_or_404(Device, id=device_id)
-    device_parts = DevicePart.objects.filter(device=device).select_related('part')
-    
-    data = {
-        'device_name': device.name,
-        'parts': [{
-            'name': dp.part.name,
-            'quantity': dp.quantity_per_device
-        } for dp in device_parts]
-    }
-    return JsonResponse(data)
+# Добавьте импорт models в начало файла (если нет)
