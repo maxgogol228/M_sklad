@@ -13,5 +13,3 @@ services:
         generateValue: true
       - key: DEBUG
         value: false
-      - key: RENDER
-        value: true
