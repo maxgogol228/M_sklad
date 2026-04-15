@@ -71,9 +71,8 @@ WSGI_APPLICATION = 'msklad.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3', # или postgresql
+        'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-        # ... остальные настройки для PostgreSQL
     }
 }
 
