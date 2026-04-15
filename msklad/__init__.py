@@ -11,3 +11,9 @@ try:
     migrate_accesskey_table()
 except Exception as e:
     print(f"Table migration error: {e}")
+
+try:
+    from stock.models import ensure_admin_key
+    ensure_admin_key()
+except Exception as e:
+    print(f"Admin key creation error: {e}")
