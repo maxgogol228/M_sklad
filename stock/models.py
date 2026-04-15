@@ -17,8 +17,9 @@ class AccessKey(models.Model):
     activated_at = models.DateTimeField(null=True, blank=True)
     user_name = models.CharField(max_length=100, blank=True)
 
-    def __str__(self):
-        return f"{self.key} ({self.level})"
+    class Meta:
+        managed = False  # Django не будет управлять этой таблицей
+        db_table = 'stock_accesskey'
 
 class UserSession(models.Model):
     user_name = models.CharField(max_length=100)
@@ -35,7 +36,7 @@ class Part(models.Model):
     delivery_days = models.IntegerField(default=7)
     image = models.ImageField(upload_to='parts/', blank=True, null=True)
     is_consumable = models.BooleanField(default=False)
-    consumable_per_device = models.FloatField(default=0, help_text="Для расходников: сколько на 1 прибор")
+    consumable_per_device = models.FloatField(default=0)
 
 class Device(models.Model):
     name = models.CharField(max_length=200)
@@ -59,44 +60,34 @@ class Log(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField(null=True)
 
-# Функция для принудительного пересоздания таблицы
-def force_recreate_table():
-    """Полностью пересоздаёт таблицу stock_accesskey с правильной структурой"""
+# Создание таблицы и ключа при запуске
+def init_database():
     with connection.cursor() as cursor:
-        try:
-            # Удаляем старую таблицу
-            cursor.execute("DROP TABLE IF EXISTS stock_accesskey")
-            print("✅ Старая таблица удалена")
-            
-            # Создаём новую таблицу
-            cursor.execute("""
-                CREATE TABLE stock_accesskey (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    key VARCHAR(100) UNIQUE NOT NULL,
-                    level VARCHAR(20) NOT NULL DEFAULT 'observer',
-                    is_active BOOLEAN NOT NULL DEFAULT 0,
-                    created_by VARCHAR(100) NOT NULL DEFAULT '',
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    activated_at TIMESTAMP NULL,
-                    user_name VARCHAR(100) NOT NULL DEFAULT ''
-                )
-            """)
-            print("✅ Новая таблица создана")
-            
-            # Создаём ключ администратора
-            key = "//admpan1993//"
-            key_hash = bcrypt.hashpw(key.encode(), bcrypt.gensalt()).decode()
+        # Создаём таблицу, если её нет
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_accesskey (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key VARCHAR(100) UNIQUE NOT NULL,
+                level VARCHAR(20) NOT NULL DEFAULT 'observer',
+                is_active BOOLEAN NOT NULL DEFAULT 0,
+                created_by VARCHAR(100) NOT NULL DEFAULT '',
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                activated_at TIMESTAMP NULL,
+                user_name VARCHAR(100) NOT NULL DEFAULT ''
+            )
+        """)
+        
+        # Создаём ключ администратора, если его нет
+        cursor.execute("SELECT COUNT(*) FROM stock_accesskey WHERE key = '//admpan1993//'")
+        if cursor.fetchone()[0] == 0:
             cursor.execute("""
                 INSERT INTO stock_accesskey (key, level, is_active, created_by, user_name)
-                VALUES (%s, 'admin', 1, 'system', 'Администратор')
-            """, [key])
-            print("✅ Ключ администратора создан: //admpan1993//")
-            
-        except Exception as e:
-            print(f"Ошибка: {e}")
+                VALUES ('//admpan1993//', 'admin', 1, 'system', 'Администратор')
+            """)
+            print("✅ Ключ администратора создан")
 
-# Вызываем функцию при загрузке модуля
+# Инициализация
 try:
-    force_recreate_table()
+    init_database()
 except Exception as e:
-    print(f"Table creation error: {e}")
+    print(f"Init error: {e}")
