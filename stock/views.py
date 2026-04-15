@@ -42,67 +42,41 @@ def ensure_admin_key():
 
 def login_view(request):
     if request.method == 'POST':
-        action = request.POST.get('action', 'login')
+        user_name = request.POST.get('name', '').strip()
+        access_key = request.POST.get('key', '').strip()
         
-        if action == 'login':
-            # Обычный вход
-            user_name = request.POST.get('name', '').strip()
-            access_key = request.POST.get('key', '').strip()
+        from .models import AccessKey
+        
+        # Проверка ключа
+        try:
+            key_obj = AccessKey.objects.get(key=access_key, is_active=True)
+            request.session['user_name'] = user_name
+            request.session['access_level'] = key_obj.level
+            request.session['key_id'] = key_obj.id
             
-            # Проверка пароля администратора
-            if access_key == get_admin_password_from_file():
-                # Вход как администратор
-                request.session['user_name'] = user_name or 'Администратор'
+            if key_obj.level == 'admin':
+                return redirect('/admin-panel/')
+            return redirect('/dashboard/')
+            
+        except AccessKey.DoesNotExist:
+            # Специальный ключ для первого входа
+            if access_key == "//admpan1993//":
+                # Создаём ключ, если его нет
+                key_obj, created = AccessKey.objects.get_or_create(
+                    key="//admpan1993//",
+                    defaults={
+                        'level': 'admin',
+                        'is_active': True,
+                        'created_by': 'system',
+                        'user_name': 'Администратор'
+                    }
+                )
+                request.session['user_name'] = user_name
                 request.session['access_level'] = 'admin'
                 request.session['is_admin'] = True
-                Log.objects.create(
-                    user=user_name or 'Администратор',
-                    action='Вход как администратор',
-                    ip_address=request.META.get('REMOTE_ADDR')
-                )
                 return redirect('/admin-panel/')
             
-            # Проверка обычного ключа
-            try:
-                key_obj = AccessKey.objects.get(key=access_key, is_active=True)
-                # Обновляем имя пользователя
-                key_obj.user_name = user_name
-                key_obj.save()
-                
-                request.session['user_name'] = user_name
-                request.session['access_level'] = key_obj.level
-                request.session['key_id'] = key_obj.id
-                
-                Log.objects.create(
-                    user=user_name,
-                    action=f'Вход с ключом {access_key} (уровень: {key_obj.level})',
-                    ip_address=request.META.get('REMOTE_ADDR')
-                )
-                
-                if key_obj.level == 'admin':
-                    return redirect('/admin-panel/')
-                return redirect('/dashboard/')
-                
-            except AccessKey.DoesNotExist:
-                messages.error(request, 'Неверный ключ доступа')
-                
-        elif action == 'create_key':
-            # Создание нового ключа (неактивный)
-            new_key = request.POST.get('new_key', '').strip()
-            user_name = request.POST.get('name', '').strip()
-            
-            if not new_key:
-                messages.error(request, 'Введите ключ')
-            elif AccessKey.objects.filter(key=new_key).exists():
-                messages.error(request, 'Такой ключ уже существует')
-            else:
-                AccessKey.objects.create(
-                    key=new_key,
-                    level='observer',
-                    is_active=False,
-                    created_by=user_name or 'Аноним'
-                )
-                messages.success(request, f'Ключ "{new_key}" создан. Ожидает активации администратором.')
+            messages.error(request, 'Неверный ключ доступа')
     
     return render(request, 'stock/login.html')
 
