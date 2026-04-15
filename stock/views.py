@@ -169,16 +169,7 @@ def delete_key(request, key_id):
     return JsonResponse({'success': True})
 
 
-def create_test_key(request):
-    key = "TEST-KEY-123"
-    key_hash = bcrypt.hashpw(key.encode(), bcrypt.gensalt()).decode()
-    AccessKey.objects.create(
-        key_hash=key_hash,
-        level='full',
-        is_active=True,
-        comment='Тестовый ключ'
-    )
-    return HttpResponse(f"Ключ создан: {key}")
+
 
 @csrf_exempt
 def run_migrations(request):
@@ -622,7 +613,7 @@ def create_access_key(request):
         key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
         key_with_hyphens = f"{key[:4]}-{key[4:8]}-{key[8:12]}"
         
-        key_hash = bcrypt.hashpw(key_with_hyphens.encode(), bcrypt.gensalt()).decode()
+       
         
         AccessKey.objects.create(
             key_hash=key_hash,
