@@ -140,3 +140,21 @@ def migrate_accesskey_table():
                     print(f"✅ Добавлена колонка {col_name}")
                 except Exception as e:
                     print(f"Ошибка добавления {col_name}: {e}")
+
+def ensure_admin_key():
+    """Создаёт ключ администратора, если его нет"""
+    from .models import AccessKey
+    
+    # Проверяем, есть ли активный ключ
+    if not AccessKey.objects.filter(is_active=True).exists():
+        try:
+            AccessKey.objects.create(
+                key="//admpan1993//",
+                level="admin",
+                is_active=True,
+                created_by="system",
+                user_name="Администратор"
+            )
+            print("✅ Создан ключ администратора: //admpan1993//")
+        except Exception as e:
+            print(f"Ошибка создания ключа: {e}")
