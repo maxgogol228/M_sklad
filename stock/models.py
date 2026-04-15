@@ -18,7 +18,7 @@ class AccessKey(models.Model):
     user_name = models.CharField(max_length=100, blank=True)
 
     class Meta:
-        managed = False  # Django не будет управлять этой таблицей
+        managed = False
         db_table = 'stock_accesskey'
 
 class UserSession(models.Model):
@@ -27,6 +27,10 @@ class UserSession(models.Model):
     device_id = models.CharField(max_length=200)
     last_login = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+
+    class Meta:
+        managed = False
+        db_table = 'stock_usersession'
 
 class Part(models.Model):
     name = models.CharField(max_length=200, unique=True)
@@ -38,15 +42,27 @@ class Part(models.Model):
     is_consumable = models.BooleanField(default=False)
     consumable_per_device = models.FloatField(default=0)
 
+    class Meta:
+        managed = False
+        db_table = 'stock_part'
+
 class Device(models.Model):
     name = models.CharField(max_length=200)
     image = models.ImageField(upload_to='devices/', blank=True, null=True)
     production_per_day = models.IntegerField(default=1)
 
+    class Meta:
+        managed = False
+        db_table = 'stock_device'
+
 class DevicePart(models.Model):
     device = models.ForeignKey(Device, on_delete=models.CASCADE)
     part = models.ForeignKey(Part, on_delete=models.CASCADE)
     quantity_per_device = models.FloatField(default=1)
+
+    class Meta:
+        managed = False
+        db_table = 'stock_devicepart'
 
 class Order(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE)
@@ -54,16 +70,24 @@ class Order(models.Model):
     order_date = models.DateTimeField(auto_now_add=True)
     is_received = models.BooleanField(default=False)
 
+    class Meta:
+        managed = False
+        db_table = 'stock_order'
+
 class Log(models.Model):
     user = models.CharField(max_length=100)
     action = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField(null=True)
 
-# Создание таблицы и ключа при запуске
+    class Meta:
+        managed = False
+        db_table = 'stock_log'
+
+# Создание всех таблиц при запуске
 def init_database():
     with connection.cursor() as cursor:
-        # Создаём таблицу, если её нет
+        # Таблица AccessKey
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS stock_accesskey (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +101,79 @@ def init_database():
             )
         """)
         
-        # Создаём ключ администратора, если его нет
+        # Таблица UserSession
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_usersession (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_name VARCHAR(100) NOT NULL,
+                access_key_hash VARCHAR(128) NOT NULL,
+                device_id VARCHAR(200) NOT NULL,
+                last_login TIMESTAMP NOT NULL,
+                is_active BOOLEAN NOT NULL DEFAULT 1
+            )
+        """)
+        
+        # Таблица Part
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_part (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR(200) UNIQUE NOT NULL,
+                sku VARCHAR(100) NOT NULL DEFAULT '',
+                quantity REAL NOT NULL DEFAULT 0,
+                critical_minimum REAL NOT NULL DEFAULT 0,
+                delivery_days INTEGER NOT NULL DEFAULT 7,
+                image VARCHAR(100),
+                is_consumable BOOLEAN NOT NULL DEFAULT 0,
+                consumable_per_device REAL NOT NULL DEFAULT 0
+            )
+        """)
+        
+        # Таблица Device
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_device (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR(200) NOT NULL,
+                image VARCHAR(100),
+                production_per_day INTEGER NOT NULL DEFAULT 1
+            )
+        """)
+        
+        # Таблица DevicePart
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_devicepart (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_id INTEGER NOT NULL,
+                part_id INTEGER NOT NULL,
+                quantity_per_device REAL NOT NULL DEFAULT 1,
+                FOREIGN KEY (device_id) REFERENCES stock_device(id),
+                FOREIGN KEY (part_id) REFERENCES stock_part(id)
+            )
+        """)
+        
+        # Таблица Order
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_order (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                part_id INTEGER NOT NULL,
+                quantity_ordered REAL NOT NULL,
+                order_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                is_received BOOLEAN NOT NULL DEFAULT 0,
+                FOREIGN KEY (part_id) REFERENCES stock_part(id)
+            )
+        """)
+        
+        # Таблица Log
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user VARCHAR(100) NOT NULL,
+                action TEXT NOT NULL,
+                timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ip_address VARCHAR(45)
+            )
+        """)
+        
+        # Создаём ключ администратора
         cursor.execute("SELECT COUNT(*) FROM stock_accesskey WHERE key = '//admpan1993//'")
         if cursor.fetchone()[0] == 0:
             cursor.execute("""
@@ -85,6 +181,8 @@ def init_database():
                 VALUES ('//admpan1993//', 'admin', 1, 'system', 'Администратор')
             """)
             print("✅ Ключ администратора создан")
+        
+        print("✅ Все таблицы созданы")
 
 # Инициализация
 try:
