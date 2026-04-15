@@ -158,3 +158,24 @@ def ensure_admin_key():
             print("✅ Создан ключ администратора: //admpan1993//")
         except Exception as e:
             print(f"Ошибка создания ключа: {e}")
+
+def recreate_accesskey_table():
+    """Полностью пересоздаёт таблицу (осторожно!)"""
+    with connection.cursor() as cursor:
+        try:
+            cursor.execute("DROP TABLE stock_accesskey")
+            cursor.execute("""
+                CREATE TABLE stock_accesskey (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    key VARCHAR(100) UNIQUE,
+                    level VARCHAR(20) DEFAULT 'observer',
+                    is_active BOOLEAN DEFAULT 0,
+                    created_by VARCHAR(100) DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    activated_at TIMESTAMP NULL,
+                    user_name VARCHAR(100) DEFAULT ''
+                )
+            """)
+            print("✅ Таблица stock_accesskey пересоздана")
+        except Exception as e:
+            print(f"Ошибка пересоздания: {e}")
