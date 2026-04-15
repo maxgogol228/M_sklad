@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('create-test-key/', views.create_test_key, name='create_test_key'),
+   
     path('migrate/', views.run_migrations, name='migrate'),
     path('orders/<int:order_id>/receive/', views.mark_order_received, name='mark_received'),
     path('', views.dashboard, name='dashboard'),
