@@ -47,21 +47,20 @@ def login_view(request):
         
         from .models import AccessKey
         
-        # Проверка ключа
         try:
             key_obj = AccessKey.objects.get(key=access_key, is_active=True)
             request.session['user_name'] = user_name
             request.session['access_level'] = key_obj.level
             request.session['key_id'] = key_obj.id
+            request.session['is_admin'] = (key_obj.level == 'admin')
             
             if key_obj.level == 'admin':
                 return redirect('/admin-panel/')
             return redirect('/dashboard/')
             
         except AccessKey.DoesNotExist:
-            # Специальный ключ для первого входа
+            # Первый вход с мастер-ключом
             if access_key == "//admpan1993//":
-                # Создаём ключ, если его нет
                 key_obj, created = AccessKey.objects.get_or_create(
                     key="//admpan1993//",
                     defaults={
