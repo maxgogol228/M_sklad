@@ -99,3 +99,44 @@ def force_update_table():
         for col in new_columns:
             if col not in columns:
                 cursor.execute(f"ALTER TABLE stock_accesskey ADD COLUMN {col} {'TEXT' if col != 'is_active' else 'BOOLEAN DEFAULT 0'}")
+
+def migrate_accesskey_table():
+    """Автоматически обновляет структуру таблицы stock_accesskey"""
+    with connection.cursor() as cursor:
+        # Получаем список колонок
+        cursor.execute("PRAGMA table_info(stock_accesskey)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        # Если колонки 'key' нет, но есть 'key_hash' — переименовываем
+        if 'key' not in columns and 'key_hash' in columns:
+            try:
+                cursor.execute("ALTER TABLE stock_accesskey RENAME COLUMN key_hash TO key")
+                print("✅ Переименована колонка key_hash -> key")
+            except Exception as e:
+                print(f"Ошибка переименования: {e}")
+        
+        # Если нет колонки 'key' и нет 'key_hash' — создаём
+        elif 'key' not in columns:
+            try:
+                cursor.execute("ALTER TABLE stock_accesskey ADD COLUMN key VARCHAR(100) UNIQUE")
+                print("✅ Добавлена колонка key")
+            except Exception as e:
+                print(f"Ошибка добавления key: {e}")
+        
+        # Добавляем остальные колонки, если их нет
+        new_columns = {
+            'level': "VARCHAR(20) DEFAULT 'observer'",
+            'is_active': "BOOLEAN DEFAULT 0",
+            'created_by': "VARCHAR(100) DEFAULT ''",
+            'created_at': "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            'activated_at': "TIMESTAMP NULL",
+            'user_name': "VARCHAR(100) DEFAULT ''"
+        }
+        
+        for col_name, col_type in new_columns.items():
+            if col_name not in columns:
+                try:
+                    cursor.execute(f"ALTER TABLE stock_accesskey ADD COLUMN {col_name} {col_type}")
+                    print(f"✅ Добавлена колонка {col_name}")
+                except Exception as e:
+                    print(f"Ошибка добавления {col_name}: {e}")
