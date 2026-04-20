@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import F
 
 class Part(models.Model):
     name = models.CharField(max_length=200, unique=True)
