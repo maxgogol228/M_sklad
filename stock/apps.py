@@ -1,10 +1,13 @@
 from django.apps import AppConfig
 import sqlite3
 import os
+import time
 
 class StockConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'stock'
+
+    time.sleep(2)
 
     def ready(self):
         """Создаёт таблицы при запуске приложения"""
