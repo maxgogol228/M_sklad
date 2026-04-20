@@ -2,7 +2,7 @@ services:
   - type: web
     name: msklad
     env: python
-    buildCommand: "pip install -r requirements.txt && python manage.py migrate"
+    buildCommand: "pip install -r requirements.txt && python reset_db.py && python manage.py makemigrations stock && python manage.py migrate"
     startCommand: "gunicorn msklad.wsgi:application --bind 0.0.0.0:$PORT"
     envVars:
       - key: PYTHON_VERSION
