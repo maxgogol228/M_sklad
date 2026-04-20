@@ -26,9 +26,9 @@
             <td>{{ device.parts_count }}</td>
             <td>
                 {% if is_editable %}
-                    <a href="/devices/edit/{{ device.id }}/" class="btn">✏ Редактировать</a>
+                    <a href="/devices/edit/{{ device.id }}/" class="btn">Редактировать</a>
                 {% endif %}
-                <button onclick="viewDevice({{ device.id }})" class="btn">📋 Состав</button>
+                <button onclick="viewDevice({{ device.id }})" class="btn">Состав</button>
             </td>
         </tr>
         {% endfor %}
