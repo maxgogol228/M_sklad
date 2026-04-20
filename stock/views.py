@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from .models import Part, Device, DevicePart, Order
 import os
 from datetime import datetime
+from django.db.models import F
 
 def index(request):
     """Главная страница"""
