@@ -1,108 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse, FileResponse
-from django.utils.timezone import now
+from django.http import JsonResponse, FileResponse
 from django.core.paginator import Paginator
-from django.views.decorators.csrf import csrf_exempt
-from .models import AccessKey, UserSession, Part, Device, DevicePart, Order, Log
-import bcrypt
-import uuid
+from .models import Part, Device, DevicePart, Order
 import os
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
-def login_view(request):
-    if request.method == 'POST':
-        user_name = request.POST.get('name', '').strip()
-        access_key = request.POST.get('key', '').strip()
-        device_id = request.COOKIES.get('device_id') or str(uuid.uuid4())
-        
-        # Специальный ключ администратора
-        if access_key == "//admpan1993//":
-            key_obj, created = AccessKey.objects.get_or_create(
-                key="//admpan1993//",
-                defaults={
-                    'level': 'admin',
-                    'is_active': True,
-                    'created_by': 'system',
-                    'user_name': 'Администратор'
-                }
-            )
-            
-            session, _ = UserSession.objects.get_or_create(
-                device_id=device_id,
-                defaults={
-                    'user_name': user_name or 'Администратор',
-                    'access_key_hash': key_obj.key
-                }
-            )
-            session.user_name = user_name or 'Администратор'
-            session.access_key_hash = key_obj.key
-            session.last_login = now()
-            session.is_active = True
-            session.save()
-            
-            response = redirect('/admin-panel/')
-            response.set_cookie('device_id', device_id, max_age=604800)
-            response.set_cookie('user_name', user_name or 'Администратор', max_age=604800)
-            
-            Log.objects.create(
-                user=user_name or 'Администратор',
-                action='Вход как администратор',
-                ip_address=request.META.get('REMOTE_ADDR')
-            )
-            return response
-        
-        # Обычная проверка ключа
-        try:
-            key_obj = AccessKey.objects.get(key=access_key, is_active=True)
-            
-            session, created = UserSession.objects.get_or_create(
-                device_id=device_id,
-                defaults={
-                    'user_name': user_name,
-                    'access_key_hash': key_obj.key
-                }
-            )
-            if not created:
-                session.user_name = user_name
-                session.access_key_hash = key_obj.key
-            session.last_login = now()
-            session.is_active = True
-            session.save()
-            
-            if key_obj.level == 'admin':
-                response = redirect('/admin-panel/')
-            else:
-                response = redirect('/dashboard/')
-            
-            response.set_cookie('device_id', device_id, max_age=604800)
-            response.set_cookie('user_name', user_name, max_age=604800)
-            
-            Log.objects.create(
-                user=user_name,
-                action=f'Вход с ключом {access_key} (уровень: {key_obj.level})',
-                ip_address=request.META.get('REMOTE_ADDR')
-            )
-            return response
-            
-        except AccessKey.DoesNotExist:
-            messages.error(request, 'Неверный ключ доступа')
-    
-    return render(request, 'stock/login.html')
-
-def logout_view(request):
-    response = redirect('/login')
-    response.delete_cookie('device_id')
-    response.delete_cookie('user_name')
-    request.session.flush()
-    messages.info(request, 'Вы вышли из системы')
-    return response
+def index(request):
+    """Главная страница"""
+    return redirect('/dashboard/')
 
 def dashboard(request):
-    if not request.session.get('user_name'):
-        return redirect('/login')
-    
+    """Панель управления"""
     parts = Part.objects.filter(is_consumable=False)[:10]
     consumables = Part.objects.filter(is_consumable=True)[:10]
     critical_parts = Part.objects.filter(quantity__lte=models.F('critical_minimum'))[:10]
@@ -111,16 +20,11 @@ def dashboard(request):
         'parts': parts,
         'consumables': consumables,
         'critical_parts': critical_parts,
-        'user_name': request.session.get('user_name', ''),
-        'access_level': request.session.get('access_level', 'observer'),
-        'is_admin': request.session.get('is_admin', False)
     }
     return render(request, 'stock/dashboard.html', context)
 
 def parts_list(request):
-    if not request.session.get('user_name'):
-        return redirect('/login')
-    
+    """Список деталей"""
     parts = Part.objects.filter(is_consumable=False)
     search = request.GET.get('search', '')
     if search:
@@ -132,16 +36,12 @@ def parts_list(request):
     
     context = {
         'parts': page_obj,
-        'is_editable': request.session.get('access_level') in ['full', 'admin'],
         'search': search
     }
     return render(request, 'stock/parts_list.html', context)
 
 def part_add(request):
-    if request.session.get('access_level') not in ['full', 'admin']:
-        messages.error(request, 'Недостаточно прав')
-        return redirect('/parts/')
-    
+    """Добавление детали"""
     if request.method == 'POST':
         name = request.POST.get('name')
         sku = request.POST.get('sku')
@@ -168,10 +68,7 @@ def part_add(request):
     return render(request, 'stock/part_form.html', {'title': 'Добавить деталь'})
 
 def part_edit(request, part_id):
-    if request.session.get('access_level') not in ['full', 'admin']:
-        messages.error(request, 'Недостаточно прав')
-        return redirect('/parts/')
-    
+    """Редактирование детали"""
     part = get_object_or_404(Part, id=part_id, is_consumable=False)
     
     if request.method == 'POST':
@@ -193,29 +90,18 @@ def part_edit(request, part_id):
     return render(request, 'stock/part_form.html', {'part': part, 'title': 'Редактировать деталь'})
 
 def part_delete(request, part_id):
-    if request.session.get('access_level') not in ['full', 'admin']:
-        return JsonResponse({'error': 'Нет прав'}, status=403)
-    
+    """Удаление детали"""
     part = get_object_or_404(Part, id=part_id)
     part.delete()
     return JsonResponse({'success': True})
 
 def devices_list(request):
-    if not request.session.get('user_name'):
-        return redirect('/login')
-    
+    """Список приборов"""
     devices = Device.objects.all()
-    context = {
-        'devices': devices,
-        'is_editable': request.session.get('access_level') in ['full', 'admin']
-    }
-    return render(request, 'stock/devices_list.html', context)
+    return render(request, 'stock/devices_list.html', {'devices': devices})
 
 def device_add(request):
-    if request.session.get('access_level') not in ['full', 'admin']:
-        messages.error(request, 'Недостаточно прав')
-        return redirect('/devices/')
-    
+    """Добавление прибора"""
     if request.method == 'POST':
         name = request.POST.get('name')
         production_per_day = int(request.POST.get('production_per_day', 1))
@@ -229,16 +115,25 @@ def device_add(request):
             device.image = request.FILES['image']
             device.save()
         
+        # Добавление деталей к прибору
+        part_ids = request.POST.getlist('part_ids')
+        quantities = request.POST.getlist('quantities')
+        for part_id, qty in zip(part_ids, quantities):
+            if part_id and qty:
+                DevicePart.objects.create(
+                    device=device,
+                    part_id=int(part_id),
+                    quantity_per_device=float(qty)
+                )
+        
         messages.success(request, f'Прибор "{name}" добавлен')
         return redirect('/devices/')
     
-    return render(request, 'stock/device_form.html', {'title': 'Добавить прибор'})
+    parts = Part.objects.filter(is_consumable=False)
+    return render(request, 'stock/device_form.html', {'parts': parts, 'title': 'Добавить прибор'})
 
 def device_edit(request, device_id):
-    if request.session.get('access_level') not in ['full', 'admin']:
-        messages.error(request, 'Недостаточно прав')
-        return redirect('/devices/')
-    
+    """Редактирование прибора"""
     device = get_object_or_404(Device, id=device_id)
     
     if request.method == 'POST':
@@ -251,15 +146,33 @@ def device_edit(request, device_id):
             device.image = request.FILES['image']
         
         device.save()
+        
+        # Обновление состава
+        DevicePart.objects.filter(device=device).delete()
+        part_ids = request.POST.getlist('part_ids')
+        quantities = request.POST.getlist('quantities')
+        for part_id, qty in zip(part_ids, quantities):
+            if part_id and qty:
+                DevicePart.objects.create(
+                    device=device,
+                    part_id=int(part_id),
+                    quantity_per_device=float(qty)
+                )
+        
         messages.success(request, 'Изменения сохранены')
         return redirect('/devices/')
     
-    return render(request, 'stock/device_form.html', {'device': device, 'title': 'Редактировать прибор'})
+    parts = Part.objects.filter(is_consumable=False)
+    device_parts = {dp.part_id: dp.quantity_per_device for dp in DevicePart.objects.filter(device=device)}
+    return render(request, 'stock/device_form.html', {
+        'device': device,
+        'parts': parts,
+        'device_parts': device_parts,
+        'title': 'Редактировать прибор'
+    })
 
 def device_composition(request, device_id):
-    if not request.session.get('user_name'):
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
+    """Состав прибора (AJAX)"""
     device = get_object_or_404(Device, id=device_id)
     device_parts = DevicePart.objects.filter(device=device).select_related('part')
     
@@ -270,20 +183,12 @@ def device_composition(request, device_id):
     return JsonResponse(data)
 
 def consumables_list(request):
-    if not request.session.get('user_name'):
-        return redirect('/login')
-    
+    """Список расходников"""
     consumables = Part.objects.filter(is_consumable=True)
-    context = {
-        'consumables': consumables,
-        'is_editable': request.session.get('access_level') in ['full', 'admin']
-    }
-    return render(request, 'stock/consumables_list.html', context)
+    return render(request, 'stock/consumables_list.html', {'consumables': consumables})
 
 def create_order(request, part_id):
-    if not request.session.get('user_name'):
-        return redirect('/login')
-    
+    """Создание заказа"""
     part = get_object_or_404(Part, id=part_id)
     
     if request.method == 'POST':
@@ -295,20 +200,12 @@ def create_order(request, part_id):
     return render(request, 'stock/order_form.html', {'part': part})
 
 def orders_list(request):
-    if not request.session.get('user_name'):
-        return redirect('/login')
-    
+    """Список заказов"""
     orders = Order.objects.all().order_by('-order_date')
-    context = {
-        'orders': orders,
-        'is_editable': request.session.get('access_level') in ['full', 'admin']
-    }
-    return render(request, 'stock/orders_list.html', context)
+    return render(request, 'stock/orders_list.html', {'orders': orders})
 
 def mark_order_received(request, order_id):
-    if request.session.get('access_level') not in ['full', 'admin']:
-        return JsonResponse({'error': 'Нет прав'}, status=403)
-    
+    """Отметить заказ как полученный"""
     order = get_object_or_404(Order, id=order_id)
     order.is_received = True
     order.save()
@@ -320,9 +217,7 @@ def mark_order_received(request, order_id):
     return JsonResponse({'success': True})
 
 def reports(request):
-    if not request.session.get('user_name'):
-        return redirect('/login')
-    
+    """Отчёты"""
     total_parts = Part.objects.count()
     low_stock = Part.objects.filter(quantity__lte=models.F('critical_minimum')).count()
     total_orders = Order.objects.filter(is_received=False).count()
@@ -334,97 +229,8 @@ def reports(request):
     }
     return render(request, 'stock/reports.html', context)
 
-def admin_panel(request):
-    if not request.session.get('is_admin') and request.session.get('access_level') != 'admin':
-        messages.error(request, 'Доступ только для администраторов')
-        return redirect('/')
-    
-    total_users = UserSession.objects.count()
-    active_keys = AccessKey.objects.filter(is_active=True).count()
-    total_logs = Log.objects.count()
-    recent_logs = Log.objects.all().order_by('-timestamp')[:50]
-    
-    context = {
-        'total_users': total_users,
-        'active_keys': active_keys,
-        'total_logs': total_logs,
-        'recent_logs': recent_logs
-    }
-    return render(request, 'stock/admin_panel.html', context)
-
-def admin_panel_keys(request):
-    if not request.session.get('is_admin') and request.session.get('access_level') != 'admin':
-        return redirect('/login/')
-    
-    keys = AccessKey.objects.all().order_by('-created_at')
-    return render(request, 'stock/admin_keys.html', {'keys': keys})
-
-def create_access_key(request):
-    if not request.session.get('is_admin') and request.session.get('access_level') != 'admin':
-        return JsonResponse({'error': 'Нет прав'}, status=403)
-    
-    if request.method == 'POST':
-        level = request.POST.get('level')
-        import random
-        import string
-        key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
-        key_with_hyphens = f"{key[:4]}-{key[4:8]}-{key[8:12]}"
-        
-        AccessKey.objects.create(
-            key=key_with_hyphens,
-            level=level,
-            is_active=True,
-            created_by=request.session.get('user_name', 'admin')
-        )
-        
-        return JsonResponse({'key': key_with_hyphens, 'level': level})
-    
-    return JsonResponse({'error': 'Метод не разрешён'}, status=405)
-
-def activate_key(request, key_id):
-    if not request.session.get('is_admin') and request.session.get('access_level') != 'admin':
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
-    key = get_object_or_404(AccessKey, id=key_id)
-    key.is_active = True
-    key.activated_at = now()
-    key.save()
-    
-    return JsonResponse({'success': True})
-
-def update_key_level(request, key_id):
-    if not request.session.get('is_admin') and request.session.get('access_level') != 'admin':
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
-    key = get_object_or_404(AccessKey, id=key_id)
-    new_level = request.POST.get('level')
-    if new_level in dict(AccessKey.LEVEL_CHOICES):
-        key.level = new_level
-        key.save()
-        return JsonResponse({'success': True})
-    return JsonResponse({'error': 'Неверный уровень'}, status=400)
-
-def delete_key(request, key_id):
-    if not request.session.get('is_admin') and request.session.get('access_level') != 'admin':
-        return JsonResponse({'error': 'Нет доступа'}, status=403)
-    
-    key = get_object_or_404(AccessKey, id=key_id)
-    key.delete()
-    return JsonResponse({'success': True})
-
-def view_logs(request):
-    if not request.session.get('is_admin') and request.session.get('access_level') != 'admin':
-        return JsonResponse({'error': 'Нет прав'}, status=403)
-    
-    logs = Log.objects.all().order_by('-timestamp')
-    data = [{'user': l.user, 'action': l.action, 'timestamp': l.timestamp.strftime('%Y-%m-%d %H:%M:%S'), 'ip': l.ip_address} for l in logs]
-    return JsonResponse({'logs': data})
-
 def backup_database(request):
-    if not request.session.get('is_admin') and request.session.get('access_level') != 'admin':
-        messages.error(request, 'Нет прав')
-        return redirect('/')
-    
+    """Скачать бэкап базы данных"""
     import zipfile
     from django.conf import settings
     
