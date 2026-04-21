@@ -100,6 +100,9 @@
             body {
                 padding: 10px;
             }
+            th, td {
+                white-space: nowrap;
+            }
         }
     </style>
 </head>
@@ -180,8 +183,8 @@
                         <td>{{ part.critical_minimum|floatformat:0 }}</td>
                         <td>{{ part.delivery_days }}</td>
                         <td>
-                           <button class="btn" onclick="alert('Ссылка для заказа не указана')">Заказать</button>
-                        </td>
+                            <button class="btn" onclick="alert('Заказ детали: {{ part.name }}. Свяжитесь с отделом снабжения.')">Заказать</button>
+                         </td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -216,7 +219,7 @@
                             {% else %}
                                 —
                             {% endif %}
-                        </td>
+                         </td>
                         <td>{{ consumable.name }}</td>
                         <td>{{ consumable.sku|default:"—" }}</td>
                         <td class="{% if consumable.quantity <= consumable.critical_minimum %}critical{% endif %}">
@@ -225,12 +228,8 @@
                         <td>{{ consumable.critical_minimum|floatformat:0 }}</td>
                         <td>{{ consumable.delivery_days }}</td>
                         <td>
-                            {% if consumable.order_link %}
-                                <a href="{{ consumable.order_link }}" target="_blank" class="btn">Заказать</a>
-                            {% else %}
-                                <button class="btn" onclick="alert('Ссылка для заказа не указана')">Заказать</button>
-                            {% endif %}
-                        </td>
+                            <button class="btn" onclick="alert('Заказ расходника: {{ consumable.name }}. Свяжитесь с отделом снабжения.')">Заказать</button>
+                         </td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -245,11 +244,11 @@
     
     <script>
         function startAssembly(deviceId, deviceName) {
-            if (confirm(`Начать сборку прибора "${deviceName}"?`)) {
-                fetch(`/api/assemble/${deviceId}/`, {
+            if (confirm('Начать сборку прибора "' + deviceName + '"?')) {
+                fetch('/api/assemble/' + deviceId + '/', {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-CSRFToken': getCookie('csrftoken'),
                         'Content-Type': 'application/json'
                     }
                 })
@@ -266,6 +265,21 @@
                     alert('Ошибка при сборке');
                 });
             }
+        }
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
         }
     </script>
 </body>
