@@ -180,11 +180,7 @@
                         <td>{{ part.critical_minimum|floatformat:0 }}</td>
                         <td>{{ part.delivery_days }}</td>
                         <td>
-                            {% if part.order_link %}
-                                <a href="{{ part.order_link }}" target="_blank" class="btn">Заказать</a>
-                            {% else %}
-                                <button class="btn" onclick="alert('Ссылка для заказа не указана')">Заказать</button>
-                            {% endif %}
+                           <button class="btn" onclick="alert('Ссылка для заказа не указана')">Заказать</button>
                         </td>
                     </tr>
                     {% empty %}
