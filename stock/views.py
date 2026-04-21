@@ -12,15 +12,15 @@ def index(request):
     return redirect('/dashboard/')
 
 def dashboard(request):
-    """Панель управления"""
-    parts = Part.objects.filter(is_consumable=False)[:10]
-    consumables = Part.objects.filter(is_consumable=True)[:10]
-    critical_parts = Part.objects.filter(quantity__lte=models.F('critical_minimum'))[:10]
+    devices = Device.objects.all()
+    parts = Part.objects.filter(is_consumable=False)
+    consumables = Part.objects.filter(is_consumable=True)
     
     context = {
+        'devices': devices,
         'parts': parts,
         'consumables': consumables,
-        'critical_parts': critical_parts,
+        'csrf_token': request.COOKIES.get('csrftoken', '')
     }
     return render(request, 'stock/dashboard.html', context)
 
