@@ -178,7 +178,7 @@ def assemble_device(request, device_id):
             device = Device.objects.get(id=device_id)
             device_parts = DevicePart.objects.filter(device=device)
             
-            # Проверяем, хватает ли деталей
+            # Проверяем наличие деталей
             for dp in device_parts:
                 if dp.part.quantity < dp.quantity_per_device:
                     return JsonResponse({
@@ -197,7 +197,7 @@ def assemble_device(request, device_id):
             return JsonResponse({'success': False, 'error': 'Прибор не найден'})
     
     return JsonResponse({'success': False, 'error': 'Метод не разрешён'})
-
+    
 def device_composition(request, device_id):
     """Состав прибора (AJAX)"""
     device = get_object_or_404(Device, id=device_id)
