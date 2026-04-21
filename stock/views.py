@@ -20,7 +20,6 @@ def dashboard(request):
         'devices': devices,
         'parts': parts,
         'consumables': consumables,
-        'csrf_token': request.COOKIES.get('csrftoken', '')
     }
     return render(request, 'stock/dashboard.html', context)
 
