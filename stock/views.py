@@ -172,6 +172,33 @@ def device_edit(request, device_id):
         'title': 'Редактировать прибор'
     })
 
+
+def assemble_device(request, device_id):
+    if request.method == 'POST':
+        try:
+            device = Device.objects.get(id=device_id)
+            device_parts = DevicePart.objects.filter(device=device)
+            
+            # Проверяем, хватает ли деталей
+            for dp in device_parts:
+                if dp.part.quantity < dp.quantity_per_device:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Не хватает детали: {dp.part.name}'
+                    })
+            
+            # Списываем детали
+            for dp in device_parts:
+                dp.part.quantity -= dp.quantity_per_device
+                dp.part.save()
+            
+            return JsonResponse({'success': True})
+            
+        except Device.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Прибор не найден'})
+    
+    return JsonResponse({'success': False, 'error': 'Метод не разрешён'})
+
 def device_composition(request, device_id):
     """Состав прибора (AJAX)"""
     device = get_object_or_404(Device, id=device_id)
