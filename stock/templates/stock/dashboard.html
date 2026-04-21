@@ -15,6 +15,7 @@
             background: #121212;
             color: #e0e0e0;
             padding: 20px;
+            direction: rtl;
         }
         
         .header {
@@ -22,6 +23,7 @@
             padding: 15px 20px;
             border-bottom: 2px solid #b22222;
             margin-bottom: 30px;
+            text-align: right;
         }
         
         .header h1 {
@@ -49,17 +51,19 @@
             margin-bottom: 15px;
             padding-bottom: 10px;
             border-bottom: 1px solid #b22222;
+            text-align: right;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
+            direction: rtl;
         }
         
         th, td {
             border: 1px solid #b22222;
             padding: 10px;
-            text-align: left;
+            text-align: right;
         }
         
         th {
@@ -119,26 +123,26 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Фото</th>
-                        <th>Название</th>
-                        <th>Сборок в день</th>
                         <th>Действие</th>
+                        <th>Сборок в день</th>
+                        <th>Название</th>
+                        <th>Фото</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for device in devices %}
                     <tr>
                         <td>
+                            <button class="btn" onclick="startAssembly({{ device.id }}, '{{ device.name }}')">Начать сборку</button>
+                        </td>
+                        <td>{{ device.production_per_day }}</td>
+                        <td>{{ device.name }}</td>
+                        <td>
                             {% if device.image %}
                                 <img src="{{ device.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
                             {% else %}
                                 —
                             {% endif %}
-                        </td>
-                        <td>{{ device.name }}</td>
-                        <td>{{ device.production_per_day }}</td>
-                        <td>
-                            <button class="btn" onclick="startAssembly({{ device.id }}, '{{ device.name }}')">Начать сборку</button>
                         </td>
                     </tr>
                     {% empty %}
@@ -156,18 +160,28 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Фото</th>
-                        <th>Название</th>
-                        <th>Артикул</th>
-                        <th>Остаток</th>
-                        <th>Крит. минимум</th>
-                        <th>Время доставки (дни)</th>
                         <th>Заказ</th>
+                        <th>Время доставки (дни)</th>
+                        <th>Крит. минимум</th>
+                        <th>Остаток</th>
+                        <th>Артикул</th>
+                        <th>Название</th>
+                        <th>Фото</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for part in parts %}
                     <tr>
+                        <td>
+                            <button class="btn" onclick="orderPart('{{ part.name }}')">Заказать</button>
+                        </td>
+                        <td>{{ part.delivery_days }}</td>
+                        <td>{{ part.critical_minimum|floatformat:0 }}</td>
+                        <td class="{% if part.quantity <= part.critical_minimum %}critical{% endif %}">
+                            {{ part.quantity|floatformat:0 }}
+                        </td>
+                        <td>{{ part.sku|default:"—" }}</td>
+                        <td>{{ part.name }}</td>
                         <td>
                             {% if part.image %}
                                 <img src="{{ part.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
@@ -175,16 +189,6 @@
                                 —
                             {% endif %}
                         </td>
-                        <td>{{ part.name }}</td>
-                        <td>{{ part.sku|default:"—" }}</td>
-                        <td class="{% if part.quantity <= part.critical_minimum %}critical{% endif %}">
-                            {{ part.quantity|floatformat:0 }}
-                        </td>
-                        <td>{{ part.critical_minimum|floatformat:0 }}</td>
-                        <td>{{ part.delivery_days }}</td>
-                        <td>
-                            <button class="btn" onclick="alert('Заказ детали: {{ part.name }}. Свяжитесь с отделом снабжения.')">Заказать</button>
-                         </td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -201,35 +205,35 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Фото</th>
-                        <th>Название</th>
-                        <th>Артикул</th>
-                        <th>Остаток</th>
-                        <th>Крит. минимум</th>
-                        <th>Время доставки (дни)</th>
                         <th>Заказ</th>
+                        <th>Время доставки (дни)</th>
+                        <th>Крит. минимум</th>
+                        <th>Остаток</th>
+                        <th>Артикул</th>
+                        <th>Название</th>
+                        <th>Фото</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for consumable in consumables %}
                     <tr>
                         <td>
+                            <button class="btn" onclick="orderConsumable('{{ consumable.name }}')">Заказать</button>
+                        </td>
+                        <td>{{ consumable.delivery_days }}</td>
+                        <td>{{ consumable.critical_minimum|floatformat:0 }}</td>
+                        <td class="{% if consumable.quantity <= consumable.critical_minimum %}critical{% endif %}">
+                            {{ consumable.quantity|floatformat:0 }}
+                        </td>
+                        <td>{{ consumable.sku|default:"—" }}</td>
+                        <td>{{ consumable.name }}</td>
+                        <td>
                             {% if consumable.image %}
                                 <img src="{{ consumable.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
                             {% else %}
                                 —
                             {% endif %}
-                         </td>
-                        <td>{{ consumable.name }}</td>
-                        <td>{{ consumable.sku|default:"—" }}</td>
-                        <td class="{% if consumable.quantity <= consumable.critical_minimum %}critical{% endif %}">
-                            {{ consumable.quantity|floatformat:0 }}
                         </td>
-                        <td>{{ consumable.critical_minimum|floatformat:0 }}</td>
-                        <td>{{ consumable.delivery_days }}</td>
-                        <td>
-                            <button class="btn" onclick="alert('Заказ расходника: {{ consumable.name }}. Свяжитесь с отделом снабжения.')">Заказать</button>
-                         </td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -265,6 +269,14 @@
                     alert('Ошибка при сборке');
                 });
             }
+        }
+        
+        function orderPart(partName) {
+            alert('Заказ детали: ' + partName + '. Свяжитесь с отделом снабжения.');
+        }
+        
+        function orderConsumable(consumableName) {
+            alert('Заказ расходника: ' + consumableName + '. Свяжитесь с отделом снабжения.');
         }
         
         function getCookie(name) {
