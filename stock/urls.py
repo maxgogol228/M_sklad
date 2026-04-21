@@ -18,4 +18,5 @@ urlpatterns = [
     path('orders/<int:order_id>/receive/', views.mark_order_received, name='mark_received'),
     path('reports/', views.reports, name='reports'),
     path('backup/', views.backup_database, name='backup'),
+    path('api/assemble/<int:device_id>/', views.assemble_device, name='assemble_device'),
 ]
