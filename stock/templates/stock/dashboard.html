@@ -15,7 +15,6 @@
             background: #121212;
             color: #e0e0e0;
             padding: 20px;
-            direction: rtl;
         }
         
         .header {
@@ -23,7 +22,6 @@
             padding: 15px 20px;
             border-bottom: 2px solid #b22222;
             margin-bottom: 30px;
-            text-align: right;
         }
         
         .header h1 {
@@ -37,12 +35,9 @@
             margin: 0 auto;
         }
         
-        .table-container {
-            background: #1e1e1e;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 30px;
-            border: 1px solid #333;
+        /* Вертикальные таблицы - каждая таблица в отдельном блоке */
+        .table-section {
+            margin-bottom: 40px;
         }
         
         .table-title {
@@ -51,19 +46,20 @@
             margin-bottom: 15px;
             padding-bottom: 10px;
             border-bottom: 1px solid #b22222;
-            text-align: right;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
-            direction: rtl;
+            background: #1e1e1e;
+            border-radius: 8px;
+            overflow: hidden;
         }
         
         th, td {
             border: 1px solid #b22222;
             padding: 10px;
-            text-align: right;
+            text-align: left;
         }
         
         th {
@@ -98,14 +94,11 @@
         }
         
         @media (max-width: 768px) {
-            .table-container {
+            .table-section {
                 overflow-x: auto;
             }
             body {
                 padding: 10px;
-            }
-            th, td {
-                white-space: nowrap;
             }
         }
     </style>
@@ -118,31 +111,31 @@
     <div class="container">
         
         <!-- Таблица 1: Приборы -->
-        <div class="table-container">
+        <div class="table-section">
             <h2 class="table-title">Приборы</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Действие</th>
-                        <th>Сборок в день</th>
-                        <th>Название</th>
                         <th>Фото</th>
+                        <th>Название</th>
+                        <th>Сборок в день</th>
+                        <th>Действие</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for device in devices %}
                     <tr>
                         <td>
-                            <button class="btn" onclick="startAssembly({{ device.id }}, '{{ device.name }}')">Начать сборку</button>
-                        </td>
-                        <td>{{ device.production_per_day }}</td>
-                        <td>{{ device.name }}</td>
-                        <td>
                             {% if device.image %}
                                 <img src="{{ device.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
                             {% else %}
                                 —
                             {% endif %}
+                        </td>
+                        <td>{{ device.name }}</td>
+                        <td>{{ device.production_per_day }}</td>
+                        <td>
+                            <button class="btn" onclick="startAssembly({{ device.id }}, '{{ device.name }}')">Начать сборку</button>
                         </td>
                     </tr>
                     {% empty %}
@@ -155,33 +148,25 @@
         </div>
         
         <!-- Таблица 2: Детали -->
-        <div class="table-container">
+        <div class="table-section">
             <h2 class="table-title">Детали</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Заказ</th>
-                        <th>Время доставки (дни)</th>
-                        <th>Крит. минимум</th>
-                        <th>Остаток</th>
-                        <th>Артикул</th>
-                        <th>Название</th>
                         <th>Фото</th>
+                        <th>Название</th>
+                        <th>Артикул</th>
+                        <th>Остаток</th>
+                        <th>Крит. минимум</th>
+                        <th>Время доставки (дни)</th>
+                        <th>Заказ</th>
+                        <th>Редактировать</th>
+                        <th>Удалить</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for part in parts %}
                     <tr>
-                        <td>
-                            <button class="btn" onclick="orderPart('{{ part.name }}')">Заказать</button>
-                        </td>
-                        <td>{{ part.delivery_days }}</td>
-                        <td>{{ part.critical_minimum|floatformat:0 }}</td>
-                        <td class="{% if part.quantity <= part.critical_minimum %}critical{% endif %}">
-                            {{ part.quantity|floatformat:0 }}
-                        </td>
-                        <td>{{ part.sku|default:"—" }}</td>
-                        <td>{{ part.name }}</td>
                         <td>
                             {% if part.image %}
                                 <img src="{{ part.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
@@ -189,44 +174,55 @@
                                 —
                             {% endif %}
                         </td>
+                        <td>{{ part.name }}</td>
+                        <td>{{ part.sku|default:"—" }}</td>
+                        <td class="{% if part.quantity <= part.critical_minimum %}critical{% endif %}">
+                            {{ part.quantity|floatformat:0 }}
+                        </td>
+                        <td>{{ part.critical_minimum|floatformat:0 }}</td>
+                        <td>{{ part.delivery_days }}</td>
+                        <td>
+                            <button class="btn" onclick="alert('Заказ детали: {{ part.name }}. Свяжитесь с отделом снабжения.')">Заказать</button>
+                        </td>
+                        <td>
+                            <a href="/parts/edit/{{ part.id }}/" class="btn">Редактировать</a>
+                        </td>
+                        <td>
+                            <button class="btn" onclick="deletePart({{ part.id }}, '{{ part.name }}')" style="background: #8b0000;">Удалить</button>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7">Нет деталей</td>
+                        <td colspan="9">Нет деталей</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            <div style="margin-top: 15px;">
+                <a href="/parts/add/" class="btn">Добавить деталь</a>
+            </div>
         </div>
         
         <!-- Таблица 3: Расходники -->
-        <div class="table-container">
+        <div class="table-section">
             <h2 class="table-title">Расходники</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Заказ</th>
-                        <th>Время доставки (дни)</th>
-                        <th>Крит. минимум</th>
-                        <th>Остаток</th>
-                        <th>Артикул</th>
-                        <th>Название</th>
                         <th>Фото</th>
+                        <th>Название</th>
+                        <th>Артикул</th>
+                        <th>Остаток</th>
+                        <th>Крит. минимум</th>
+                        <th>Время доставки (дни)</th>
+                        <th>Заказ</th>
+                        <th>Редактировать</th>
+                        <th>Удалить</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for consumable in consumables %}
                     <tr>
-                        <td>
-                            <button class="btn" onclick="orderConsumable('{{ consumable.name }}')">Заказать</button>
-                        </td>
-                        <td>{{ consumable.delivery_days }}</td>
-                        <td>{{ consumable.critical_minimum|floatformat:0 }}</td>
-                        <td class="{% if consumable.quantity <= consumable.critical_minimum %}critical{% endif %}">
-                            {{ consumable.quantity|floatformat:0 }}
-                        </td>
-                        <td>{{ consumable.sku|default:"—" }}</td>
-                        <td>{{ consumable.name }}</td>
                         <td>
                             {% if consumable.image %}
                                 <img src="{{ consumable.image.url }}" style="width: 50px; height: 50px; object-fit: cover;">
@@ -234,14 +230,33 @@
                                 —
                             {% endif %}
                         </td>
+                        <td>{{ consumable.name }}</td>
+                        <td>{{ consumable.sku|default:"—" }}</td>
+                        <td class="{% if consumable.quantity <= consumable.critical_minimum %}critical{% endif %}">
+                            {{ consumable.quantity|floatformat:0 }}
+                        </td>
+                        <td>{{ consumable.critical_minimum|floatformat:0 }}</td>
+                        <td>{{ consumable.delivery_days }}</td>
+                        <td>
+                            <button class="btn" onclick="alert('Заказ расходника: {{ consumable.name }}. Свяжитесь с отделом снабжения.')">Заказать</button>
+                        </td>
+                        <td>
+                            <a href="/parts/edit/{{ consumable.id }}/" class="btn">Редактировать</a>
+                        </td>
+                        <td>
+                            <button class="btn" onclick="deletePart({{ consumable.id }}, '{{ consumable.name }}')" style="background: #8b0000;">Удалить</button>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7">Нет расходников</td>
+                        <td colspan="9">Нет расходников</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            <div style="margin-top: 15px;">
+                <a href="/parts/add/" class="btn">Добавить расходник</a>
+            </div>
         </div>
         
     </div>
@@ -271,12 +286,24 @@
             }
         }
         
-        function orderPart(partName) {
-            alert('Заказ детали: ' + partName + '. Свяжитесь с отделом снабжения.');
-        }
-        
-        function orderConsumable(consumableName) {
-            alert('Заказ расходника: ' + consumableName + '. Свяжитесь с отделом снабжения.');
+        function deletePart(id, name) {
+            if (confirm('Удалить "' + name + '"?')) {
+                fetch('/parts/delete/' + id + '/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка удаления');
+                    }
+                });
+            }
         }
         
         function getCookie(name) {
