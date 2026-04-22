@@ -3,14 +3,14 @@ from django.db.models import F
 
 class Part(models.Model):
     name = models.CharField(max_length=200, unique=True)
-    sku = models.CharField(max_length=100, blank=True)
+    order_link = models.URLField(max_length=500, blank=True, null=True, verbose_name='Ссылка для заказа')
+    sku = models.CharField(max_length=100, blank=True)  # можно удалить, если не нужно
     quantity = models.FloatField(default=0)
     critical_minimum = models.FloatField(default=0)
     delivery_days = models.IntegerField(default=7)
     image = models.ImageField(upload_to='parts/', blank=True, null=True)
     is_consumable = models.BooleanField(default=False)
     consumable_per_device = models.FloatField(default=0)
-    # order_link НЕ ДОЛЖНО БЫТЬ
 
 class Device(models.Model):
     name = models.CharField(max_length=200)
