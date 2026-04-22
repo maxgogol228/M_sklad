@@ -41,31 +41,32 @@ def parts_list(request):
     return render(request, 'stock/parts_list.html', context)
 
 def part_add(request):
-    """Добавление детали"""
     if request.method == 'POST':
         name = request.POST.get('name')
-        sku = request.POST.get('sku')
+        order_link = request.POST.get('order_link', '')
         quantity = float(request.POST.get('quantity', 0))
         critical_minimum = float(request.POST.get('critical_minimum', 0))
         delivery_days = int(request.POST.get('delivery_days', 7))
+        is_consumable = request.GET.get('type') == 'consumable'
         
         part = Part.objects.create(
             name=name,
-            sku=sku,
+            order_link=order_link,
             quantity=quantity,
             critical_minimum=critical_minimum,
             delivery_days=delivery_days,
-            is_consumable=False
+            is_consumable=is_consumable
         )
         
         if request.FILES.get('image'):
             part.image = request.FILES['image']
             part.save()
         
-        messages.success(request, f'Деталь "{name}" добавлена')
-        return redirect('/parts/')
+        messages.success(request, f'{"Расходник" if is_consumable else "Деталь"} "{name}" добавлена')
+        return redirect('/dashboard/')
     
-    return render(request, 'stock/part_form.html', {'title': 'Добавить деталь'})
+    context = {'title': 'Добавить деталь'}
+    return render(request, 'stock/part_form.html', context)
 
 def part_edit(request, part_id):
     """Редактирование детали"""
