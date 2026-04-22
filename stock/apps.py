@@ -7,27 +7,4 @@ class StockConfig(AppConfig):
     name = 'stock'
 
     def ready(self):
-        """Автоматически добавляет недостающие колонки в таблицы"""
-        from django.conf import settings
-        
-        db_path = settings.DATABASES['default']['NAME']
-        
-        if not os.path.exists(db_path):
-            return
-        
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Проверяем наличие колонки order_link в таблице stock_part
-        cursor.execute("PRAGMA table_info(stock_part)")
-        columns = [col[1] for col in cursor.fetchall()]
-        
-        if 'order_link' not in columns:
-            try:
-                cursor.execute("ALTER TABLE stock_part ADD COLUMN order_link VARCHAR(500)")
-                conn.commit()
-                print("✅ Добавлена колонка order_link в таблицу stock_part")
-            except Exception as e:
-                print(f"Ошибка добавления колонки: {e}")
-        
-        conn.close()
+        pass
