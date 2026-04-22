@@ -30,7 +30,6 @@
             font-weight: 600;
         }
         
-        /* Горизонтальное расположение таблиц */
         .tables-row {
             display: flex;
             gap: 20px;
@@ -40,7 +39,7 @@
         
         .table-container {
             flex: 1;
-            min-width: 300px;
+            min-width: 280px;
             background: #1e1e1e;
             border-radius: 8px;
             padding: 15px;
@@ -53,6 +52,9 @@
             margin-bottom: 15px;
             padding-bottom: 8px;
             border-bottom: 1px solid #b22222;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         table {
@@ -94,12 +96,10 @@
             background: #8b0000;
         }
         
-        .btn-danger {
-            background: #8b0000;
-        }
-        
-        .btn-danger:hover {
-            background: #660000;
+        .btn-add {
+            background: #b22222;
+            padding: 6px 12px;
+            font-size: 12px;
         }
         
         .critical {
@@ -109,7 +109,7 @@
         
         .add-button {
             margin-top: 15px;
-            display: inline-block;
+            text-align: center;
         }
         
         img {
@@ -137,7 +137,10 @@
         
         <!-- Таблица 1: Приборы -->
         <div class="table-container">
-            <h2 class="table-title">Приборы</h2>
+            <div class="table-title">
+                <span>Приборы</span>
+                <a href="/devices/add/" class="btn btn-add">+ Добавить прибор</a>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -172,7 +175,10 @@
         
         <!-- Таблица 2: Детали -->
         <div class="table-container">
-            <h2 class="table-title">Детали</h2>
+            <div class="table-title">
+                <span>Детали</span>
+                <a href="/parts/add/?type=part" class="btn btn-add">+ Добавить деталь</a>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -180,8 +186,7 @@
                         <th>Название</th>
                         <th>Остаток</th>
                         <th>Крит.</th>
-                        <th>Заказ</th>
-                        <th></th>
+                        <th>Действие</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -200,25 +205,27 @@
                         </td>
                         <td>{{ part.critical_minimum|floatformat:0 }}</td>
                         <td>
-                            <button class="btn" onclick="alert('Заказ: {{ part.name }}')">Заказать</button>
-                        </td>
-                        <td>
-                            <button class="btn btn-danger" onclick="deletePart({{ part.id }}, '{{ part.name }}')">Удалить</button>
+                            {% if part.order_link %}
+                                <a href="{{ part.order_link }}" target="_blank" class="btn">Заказать</a>
+                            {% else %}
+                                <button class="btn" onclick="alert('Ссылка для заказа не указана')">Заказать</button>
+                            {% endif %}
+                            <button class="btn" onclick="deletePart({{ part.id }}, '{{ part.name }}')" style="background: #8b0000; margin-left: 5px;">Удалить</button>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6">Нет деталей</td></tr>
+                    <tr><td colspan="5">Нет деталей</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
-            <div class="add-button">
-                <a href="/parts/add/" class="btn">Добавить деталь</a>
-            </div>
         </div>
         
         <!-- Таблица 3: Расходники -->
         <div class="table-container">
-            <h2 class="table-title">Расходники</h2>
+            <div class="table-title">
+                <span>Расходники</span>
+                <a href="/parts/add/?type=consumable" class="btn btn-add">+ Добавить расходник</a>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -226,8 +233,7 @@
                         <th>Название</th>
                         <th>Остаток</th>
                         <th>Крит.</th>
-                        <th>Заказ</th>
-                        <th></th>
+                        <th>Действие</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -246,20 +252,19 @@
                         </td>
                         <td>{{ consumable.critical_minimum|floatformat:0 }}</td>
                         <td>
-                            <button class="btn" onclick="alert('Заказ: {{ consumable.name }}')">Заказать</button>
-                        </td>
-                        <td>
-                            <button class="btn btn-danger" onclick="deletePart({{ consumable.id }}, '{{ consumable.name }}')">Удалить</button>
+                            {% if consumable.order_link %}
+                                <a href="{{ consumable.order_link }}" target="_blank" class="btn">Заказать</a>
+                            {% else %}
+                                <button class="btn" onclick="alert('Ссылка для заказа не указана')">Заказать</button>
+                            {% endif %}
+                            <button class="btn" onclick="deletePart({{ consumable.id }}, '{{ consumable.name }}')" style="background: #8b0000; margin-left: 5px;">Удалить</button>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6">Нет расходников</td></tr>
+                    <tr><td colspan="5">Нет расходников</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
-            <div class="add-button">
-                <a href="/parts/add/" class="btn">Добавить расходник</a>
-            </div>
         </div>
         
     </div>
